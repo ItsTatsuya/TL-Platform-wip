@@ -1,0 +1,129 @@
+from django.db import models, transaction
+from django.utils import timezone
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from curriculum.models import LearningActivity
+from .models import (
+    ActivityProgress,
+    BadgeAward,
+    CareerOpportunity,
+    PointEvent,
+)
+from students.models import Enrollment
+from .serializers import (
+    ActivityProgressSerializer,
+    BadgeAwardSerializer,
+    CareerOpportunitySerializer,
+    PointEventSerializer,
+    ProgressUpsertSerializer,
+)
+
+EVENT_BADGES = {
+    PointEvent.Reason.REACH_PEAK: BadgeAward.Code.FIRST_PEAK,
+    PointEvent.Reason.EXPLORE_SLOPES: BadgeAward.Code.SLOPE_READER,
+    PointEvent.Reason.EXPORT_REPORT: BadgeAward.Code.BUSINESS_OPTIMISER,
+}
+
+
+def _ensure_enrollment(user, activity):
+    course = activity.subtopic.chapter.course_version.course
+    enrollment = Enrollment.objects.filter(
+        student=user, course=course,
+        course_version=activity.subtopic.chapter.course_version,
+        status=Enrollment.Status.ACTIVE,
+    ).filter(
+        models.Q(expires_at__isnull=True) | models.Q(expires_at__gt=timezone.now())
+    ).first()
+    if enrollment is None:
+        raise PermissionDenied("An active enrollment for this course version is required.")
+    return enrollment
+
+
+def _award_event(user, activity, event_code):
+    if not event_code:
+        return None, None
+    try:
+        reason = PointEvent.Reason(event_code)
+    except ValueError:
+        return None, None
+    points, _ = PointEvent.objects.get_or_create(
+        user=user,
+        activity=activity,
+        reason=reason,
+        defaults={"points": PointEvent.POINTS[reason]},
+    )
+    badge = None
+    badge_code = EVENT_BADGES.get(reason)
+    if badge_code:
+        badge, _ = BadgeAward.objects.get_or_create(
+            user=user, activity=activity, code=badge_code
+        )
+    if reason == PointEvent.Reason.REACH_PEAK:
+        BadgeAward.objects.get_or_create(
+            user=user, activity=activity, code=BadgeAward.Code.BUSINESS_OPTIMISER
+        )
+    return points, badge
+
+
+class ProgressUpsertView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ProgressUpsertSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        activity = LearningActivity.objects.filter(id=data["activity"]).first()
+        if not activity:
+            return Response({"detail": "Activity not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        with transaction.atomic():
+            enrollment = _ensure_enrollment(request.user, activity)
+            progress, _ = ActivityProgress.objects.get_or_create(
+                enrollment=enrollment,
+                activity=activity,
+                defaults={"status": data.get("status") or "in_progress", "extra": {}},
+            )
+            extra = progress.extra or {}
+            incoming = data.get("extra") or {}
+            extra.update(incoming)
+            progress.extra = extra
+            progress.status = data.get("status") or progress.status
+            if progress.status == "completed" and not progress.completed_at:
+                progress.completed_at = timezone.now()
+            progress.save()
+            awarded_points, awarded_badge = _award_event(
+                request.user, activity, data.get("event")
+            )
+
+        payload = ActivityProgressSerializer(progress).data
+        payload["points"] = PointEventSerializer(awarded_points).data if awarded_points else None
+        payload["badge"] = BadgeAwardSerializer(awarded_badge).data if awarded_badge else None
+        return Response(payload)
+
+
+class GamificationMeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        points = PointEvent.objects.filter(user=request.user)
+        badges = BadgeAward.objects.filter(user=request.user)
+        total = sum(p.points for p in points)
+        return Response(
+            {
+                "total_points": total,
+                "events": PointEventSerializer(points, many=True).data,
+                "badges": BadgeAwardSerializer(badges, many=True).data,
+            }
+        )
+
+
+class CareerOpportunityListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        qs = CareerOpportunity.objects.filter(is_published=True)
+        return Response(CareerOpportunitySerializer(qs, many=True).data)

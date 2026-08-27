@@ -1,0 +1,102 @@
+from collections import defaultdict
+
+from django.contrib.auth.models import Group, Permission
+from django.core.management.base import BaseCommand
+from django.db import transaction
+
+from accounts.constants import GroupName
+
+
+PERMISSIONS_BY_GROUP = {
+    GroupName.ADMIN: {
+        "accounts.add_user", "accounts.change_user", "accounts.view_user",
+        "accounts.manage_users", "accounts.bulk_import_students",
+        "curriculum.view_program", "curriculum.view_course", "curriculum.view_courseversion",
+        "curriculum.view_chapter", "curriculum.view_subtopic", "curriculum.view_learningactivity",
+        "curriculum.add_learningactivity", "curriculum.change_learningactivity",
+        "progress.view_activityprogress",
+        "students.add_studentgroup", "students.change_studentgroup", "students.view_studentgroup",
+        "students.add_studentgroupmember", "students.change_studentgroupmember", "students.delete_studentgroupmember", "students.view_studentgroupmember",
+        "students.add_enrollment", "students.change_enrollment", "students.view_enrollment",
+        "students.add_courseassignment", "students.change_courseassignment", "students.view_courseassignment",
+        "students.add_externalusermapping", "students.change_externalusermapping", "students.view_externalusermapping",
+        "students.manage_students", "students.manage_student_groups", "students.assign_course",
+        "content.add_activitycontent", "content.change_activitycontent", "content.view_activitycontent",
+        "content.add_video", "content.change_video", "content.view_video",
+        "content.add_experiment", "content.change_experiment", "content.view_experiment",
+        "content.add_practiceset", "content.change_practiceset", "content.view_practiceset",
+        "content.add_practiceitem", "content.change_practiceitem", "content.view_practiceitem",
+        "media_library.add_mediaasset", "media_library.change_mediaasset", "media_library.view_mediaasset",
+        "students.view_studentgroup", "students.view_studentgroupmember", "students.view_enrollment", "students.view_courseassignment",
+    },
+    GroupName.ACADEMIC_MANAGER: {
+        "curriculum.add_program", "curriculum.change_program", "curriculum.view_program",
+        "curriculum.add_course", "curriculum.change_course", "curriculum.view_course",
+        "curriculum.add_courseversion", "curriculum.change_courseversion", "curriculum.view_courseversion",
+        "curriculum.add_chapter", "curriculum.change_chapter", "curriculum.view_chapter",
+        "curriculum.add_subtopic", "curriculum.change_subtopic", "curriculum.view_subtopic",
+        "curriculum.add_learningactivity", "curriculum.change_learningactivity", "curriculum.view_learningactivity",
+        "curriculum.publish_course", "curriculum.archive_course", "curriculum.duplicate_course",
+        "curriculum.publish_chapter", "curriculum.duplicate_chapter",
+        "progress.view_activityprogress",
+        "content.add_activitycontent", "content.change_activitycontent", "content.view_activitycontent",
+        "content.add_video", "content.change_video", "content.view_video",
+        "content.add_experiment", "content.change_experiment", "content.view_experiment",
+        "content.add_practiceset", "content.change_practiceset", "content.view_practiceset",
+        "content.add_practiceitem", "content.change_practiceitem", "content.view_practiceitem",
+        "media_library.add_mediaasset", "media_library.change_mediaasset", "media_library.view_mediaasset",
+    },
+    GroupName.CONTENT_MANAGER: {
+        "curriculum.view_program", "curriculum.view_course", "curriculum.view_courseversion",
+        "curriculum.view_chapter", "curriculum.change_chapter",
+        "curriculum.view_subtopic", "curriculum.change_subtopic",
+        "curriculum.add_learningactivity", "curriculum.change_learningactivity", "curriculum.view_learningactivity",
+        "content.add_activitycontent", "content.change_activitycontent", "content.view_activitycontent",
+        "content.add_video", "content.change_video", "content.view_video",
+        "content.add_experiment", "content.change_experiment", "content.view_experiment",
+        "content.add_practiceset", "content.change_practiceset", "content.view_practiceset",
+        "content.add_practiceitem", "content.change_practiceitem", "content.view_practiceitem",
+        "media_library.add_mediaasset", "media_library.change_mediaasset", "media_library.view_mediaasset",
+    },
+    GroupName.TEACHER: {
+        "accounts.view_user", "curriculum.view_course", "curriculum.view_courseversion",
+        "curriculum.view_chapter", "curriculum.view_subtopic", "curriculum.view_learningactivity",
+        "progress.view_activityprogress",
+        "content.view_activitycontent", "content.view_video", "content.view_experiment",
+        "content.view_practiceset", "content.view_practiceitem", "media_library.view_mediaasset",
+        "students.view_studentgroup", "students.view_studentgroupmember", "students.view_enrollment", "students.view_courseassignment",
+    },
+    GroupName.STUDENT: {
+        "accounts.view_user", "curriculum.view_course", "curriculum.view_courseversion",
+        "curriculum.view_chapter", "curriculum.view_subtopic", "curriculum.view_learningactivity",
+        "progress.add_activityprogress", "progress.change_activityprogress", "progress.view_activityprogress",
+        "content.view_activitycontent", "content.view_video", "content.view_experiment",
+        "content.view_practiceset", "content.view_practiceitem", "media_library.view_mediaasset",
+        "students.view_studentgroup", "students.view_studentgroupmember", "students.view_enrollment",
+        "students.view_courseassignment", "students.view_externalusermapping",
+    },
+}
+
+
+class Command(BaseCommand):
+    help = "Create Django Groups and synchronize their permissions idempotently."
+
+    @transaction.atomic
+    def handle(self, *args, **options):
+        all_permissions = Permission.objects.select_related("content_type").all()
+        permission_map = {
+            f"{permission.content_type.app_label}.{permission.codename}": permission
+            for permission in all_permissions
+        }
+        missing = defaultdict(list)
+        for name in GroupName.values:
+            group, _ = Group.objects.get_or_create(name=name)
+            requested = set(permission_map) if name == GroupName.SUPER_ADMIN else PERMISSIONS_BY_GROUP[name]
+            resolved = [permission_map[key] for key in requested if key in permission_map]
+            missing[name].extend(sorted(requested - permission_map.keys()))
+            group.permissions.set(resolved)
+            self.stdout.write(self.style.SUCCESS(f"✓ {name}"))
+            self.stdout.write(f"  {len(resolved)} permissions")
+        for name, keys in missing.items():
+            if keys:
+                self.stdout.write(self.style.WARNING(f"  {name}: skipped unavailable future permissions: {', '.join(keys)}"))

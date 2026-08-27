@@ -1,0 +1,370 @@
+.tella-workshop {
+  --tella-primary: #2563eb;
+  --tella-primary-strong: #1d4ed8;
+  --tella-success: #16a34a;
+  --tella-warning: #c2410c;
+  --tella-surface: #ffffff;
+  --tella-background: #f8fafc;
+  --tella-text: #0f172a;
+  --tella-muted: #64748b;
+  --tella-border: #e2e8f0;
+  --tella-radius: 12px;
+  --tella-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07);
+  --tella-focus: 0 0 0 3px rgb(15 108 191 / 0.25);
+  display: block;
+  box-sizing: border-box;
+  padding: clamp(16px, 3vw, 32px);
+  color: var(--tella-text);
+  background: var(--tella-background);
+  border-radius: var(--tella-radius);
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.tella-workshop *,
+.tella-workshop *::before,
+.tella-workshop *::after {
+  box-sizing: border-box;
+}
+
+.tella-workshop button,
+.tella-workshop input,
+.tella-workshop select,
+.tella-workshop textarea {
+  font: inherit;
+  color: inherit;
+  background: var(--tella-surface);
+  border: 1px solid var(--tella-border);
+  border-radius: 10px;
+  appearance: none;
+  -webkit-appearance: none;
+  box-shadow: none;
+  line-height: 1.3;
+}
+
+.tella-boot {
+  margin: 24px;
+  color: var(--tella-muted);
+}
+
+.tella-workshop a:not(.nav-link) {
+  color: var(--tella-primary);
+  text-decoration: none;
+}
+
+.tella-modelling {
+  min-width: 0;
+}
+
+.tella-pagehead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.tella-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.tella-workshop .nav-tabs .nav-link {
+  cursor: pointer;
+}
+
+.tella-tab:focus-visible,
+.tella-workshop button:focus-visible,
+.tella-workshop input:focus-visible,
+.tella-workshop a:focus-visible {
+  outline: none;
+  box-shadow: var(--tella-focus);
+}
+
+.tella-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.tella-toolbar h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  letter-spacing: -0.03em;
+}
+
+.tella-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tella-workshop button.tella-btn {
+  min-height: 44px;
+  padding: 0 14px;
+  cursor: pointer;
+  background: var(--tella-surface);
+}
+
+.tella-workshop button.tella-btn-primary {
+  background: var(--tella-primary);
+  color: #fff;
+  border-color: var(--tella-primary);
+}
+
+.tella-workshop button.tella-btn-primary:hover,
+.tella-workshop button.tella-btn.is-on:hover {
+  background: var(--tella-primary-strong);
+}
+
+.tella-question {
+  margin: 0;
+  flex: 1;
+  padding: 10px 14px;
+  background: #eef5fb;
+  color: inherit;
+  border-radius: var(--tella-radius);
+  line-height: 1.45;
+}
+
+.tella-editor {
+  display: grid;
+  gap: 16px;
+}
+
+.tella-card h3 {
+  margin: 0 0 12px;
+  font-size: 0.95rem;
+  letter-spacing: -0.02em;
+}
+
+.tella-identity-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.tella-workshop textarea {
+  min-height: 64px;
+  padding: 8px 10px;
+  resize: vertical;
+  width: 100%;
+}
+
+.tella-split {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) 1fr;
+  gap: 16px;
+}
+
+.tella-split-even {
+  grid-template-columns: 1fr 1fr;
+}
+
+.tella-card {
+  background: var(--tella-surface);
+  border-radius: var(--tella-radius);
+  box-shadow: var(--tella-shadow);
+  padding: 16px;
+}
+
+.tella-inputs {
+  display: grid;
+  gap: 10px;
+}
+
+.tella-field {
+  display: grid;
+  gap: 4px;
+  font-size: 0.9rem;
+  color: var(--tella-muted);
+}
+
+.tella-field input {
+  min-height: 44px;
+  padding: 8px 10px;
+  color: var(--tella-text);
+}
+
+.tella-error {
+  color: var(--tella-warning);
+  min-height: 1.1em;
+  font-size: 0.8rem;
+}
+
+.tella-canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 8px;
+  background: var(--tella-background);
+}
+
+.tella-here,
+.tella-note,
+.tella-muted {
+  color: var(--tella-muted);
+  margin: 8px 0 0;
+}
+
+.tella-slope {
+  margin: 16px 0 0;
+  padding: 16px 18px;
+  border-radius: var(--tella-radius);
+  background: #ecfdf3;
+  color: var(--tella-success);
+  font-size: 1.35rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.tella-slope.is-negative {
+  background: #fff7ed;
+  color: var(--tella-warning);
+}
+
+.tella-slider {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tella-slider input[type="range"] {
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+.tella-slider input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  background: var(--tella-border);
+  border-radius: 999px;
+}
+
+.tella-slider input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  margin-top: -8px;
+  border-radius: 50%;
+  background: var(--tella-primary);
+  border: 0;
+}
+
+.tella-sliders {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.tella-report {
+  display: grid;
+  gap: 16px;
+}
+
+.tella-recommend {
+  font-size: 1.35rem;
+  line-height: 1.45;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.tella-facts {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.tella-facts dt {
+  color: var(--tella-muted);
+  font-size: 0.85rem;
+}
+
+.tella-facts dd {
+  margin: 4px 0 0;
+  font-weight: 600;
+}
+
+.tella-working {
+  background: var(--tella-surface);
+  border-radius: var(--tella-radius);
+  padding: 12px 16px;
+  box-shadow: var(--tella-shadow);
+}
+
+.tella-working summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+}
+
+.tella-toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  background: var(--tella-text);
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 10px;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: 180ms ease;
+}
+
+.tella-toast.is-on {
+  opacity: 1;
+  transform: none;
+}
+
+.tella-job h3 {
+  margin: 0 0 6px;
+}
+
+@media (max-width: 960px) {
+  .tella-split,
+  .tella-split-even,
+  .tella-sliders,
+  .tella-identity-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tella-meta {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 640px) {
+  .tella-app {
+    padding: 12px;
+  }
+
+  .tella-inputs {
+    max-height: none;
+  }
+}
+
+@media print {
+  .tella-workshop {
+    background: #fff;
+    color: #111;
+  }
+
+  .tella-tabs,
+  .tella-toolbar-actions,
+  .tella-topbar a,
+  .tella-toast {
+    display: none !important;
+  }
+}
