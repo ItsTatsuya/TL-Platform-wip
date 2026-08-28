@@ -21,7 +21,21 @@ class CourseProgress(TimestampedUUIDModel):
         Enrollment, on_delete=models.CASCADE, related_name="course_progress"
     )
     percent_complete = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    progress_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    status = models.CharField(max_length=20, default="NOT_STARTED", db_index=True)
+    completed_chapters = models.PositiveIntegerField(default=0)
+    total_chapters = models.PositiveIntegerField(default=0)
+    average_score = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    last_accessed_at = models.DateTimeField(null=True, blank=True)
     last_activity_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        permissions = [
+            ("view_all_student_progress", "Can view all student progress"),
+            ("view_assigned_student_progress", "Can view assigned student progress"),
+        ]
 
 
 class ChapterProgress(TimestampedUUIDModel):
@@ -30,6 +44,16 @@ class ChapterProgress(TimestampedUUIDModel):
     )
     chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE)
     percent_complete = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    progress_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    status = models.CharField(max_length=20, default="NOT_STARTED", db_index=True)
+    completed_subtopics = models.PositiveIntegerField(default=0)
+    total_subtopics = models.PositiveIntegerField(default=0)
+    case_study_status = models.CharField(max_length=20, default="NOT_STARTED")
+    learning_check_status = models.CharField(max_length=20, default="NOT_STARTED")
+    learning_check_score = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    last_accessed_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         unique_together = ("enrollment", "chapter")
@@ -41,6 +65,13 @@ class SubtopicProgress(TimestampedUUIDModel):
     )
     subtopic = models.ForeignKey(Subtopic, on_delete=models.CASCADE)
     percent_complete = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    progress_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    status = models.CharField(max_length=20, default="NOT_STARTED", db_index=True)
+    completed_activities = models.PositiveIntegerField(default=0)
+    total_required_activities = models.PositiveIntegerField(default=0)
+    started_at = models.DateTimeField(null=True, blank=True)
+    last_accessed_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         unique_together = ("enrollment", "subtopic")
@@ -52,6 +83,12 @@ class ActivityProgress(TimestampedUUIDModel):
     )
     activity = models.ForeignKey(LearningActivity, on_delete=models.CASCADE)
     status = models.CharField(max_length=32, default="not_started")
+    progress_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    time_spent_seconds = models.PositiveIntegerField(default=0)
+    started_at = models.DateTimeField(null=True, blank=True)
+    last_accessed_at = models.DateTimeField(null=True, blank=True)
+    attempt_count = models.PositiveIntegerField(default=0)
+    metadata = models.JSONField(default=dict, blank=True)
     extra = models.JSONField(default=dict, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 

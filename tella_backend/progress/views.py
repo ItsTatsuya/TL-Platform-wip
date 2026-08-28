@@ -21,6 +21,7 @@ from .serializers import (
     PointEventSerializer,
     ProgressUpsertSerializer,
 )
+from .services import ProgressService
 
 EVENT_BADGES = {
     PointEvent.Reason.REACH_PEAK: BadgeAward.Code.FIRST_PEAK,
@@ -82,10 +83,12 @@ class ProgressUpsertView(APIView):
 
         with transaction.atomic():
             enrollment = _ensure_enrollment(request.user, activity)
-            progress, _ = ActivityProgress.objects.get_or_create(
+            progress = ProgressService.record_activity_progress(
+                student=request.user, activity=activity,
+                progress_percentage=data.get("progress_percentage", 100 if data.get("status") == "completed" else 0),
+                time_spent_seconds=data.get("time_spent_seconds", 0),
+                status="COMPLETED" if data.get("status") == "completed" else None,
                 enrollment=enrollment,
-                activity=activity,
-                defaults={"status": data.get("status") or "in_progress", "extra": {}},
             )
             extra = progress.extra or {}
             incoming = data.get("extra") or {}
@@ -103,6 +106,35 @@ class ProgressUpsertView(APIView):
         payload["points"] = PointEventSerializer(awarded_points).data if awarded_points else None
         payload["badge"] = BadgeAwardSerializer(awarded_badge).data if awarded_badge else None
         return Response(payload)
+
+
+class ActivityProgressActionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, activity_id, action):
+        activity = LearningActivity.objects.filter(id=activity_id).select_related("subtopic__chapter__course_version__course").first()
+        if activity is None:
+            return Response({"detail": "Activity not found."}, status=404)
+        action_payload = request.data.copy()
+        action_payload["activity"] = str(activity_id)
+        serializer = ProgressUpsertSerializer(data=action_payload)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        if action == "start":
+            data["progress_percentage"] = max(0, data.get("progress_percentage", 0))
+            data["status"] = "IN_PROGRESS"
+        elif action == "complete":
+            data["progress_percentage"] = 100
+            data["status"] = "COMPLETED"
+        else:
+            data["status"] = data.get("status")
+        progress = ProgressService.record_activity_progress(
+            student=request.user, activity=activity,
+            progress_percentage=data.get("progress_percentage", 0),
+            time_spent_seconds=data.get("time_spent_seconds", 0),
+            status=data.get("status"), metadata=data.get("metadata"),
+        )
+        return Response(ActivityProgressSerializer(progress).data)
 
 
 class GamificationMeView(APIView):

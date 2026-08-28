@@ -2,7 +2,7 @@
 
 The Django API is the platform's source of truth. Moodle is an API client and presentation layer; academic authorization and business rules stay in Django services.
 
-The maintained endpoint and payload reference is [docs/API.md](../docs/API.md).
+The maintained endpoint and payload reference is [docs/API.md](../docs/API.md). For step-by-step creation of every data segment, see [docs/DATA_ENTRY_GUIDE.md](../docs/DATA_ENTRY_GUIDE.md).
 
 ## Implemented architecture (Phases 1–4)
 
@@ -16,6 +16,9 @@ The maintained endpoint and payload reference is [docs/API.md](../docs/API.md).
 - `curriculum/`: Programs, Courses, CourseVersions, Chapters, Subtopics, and LearningActivities
 - `content/` and `media_library/`: structured learning content and storage-ready media metadata
 - `students/`: cohorts, memberships, versioned enrollments, course assignments, and LMS mappings
+- `progress/`: transactional activity progress with persisted subtopic, chapter, and course snapshots
+- `assessments/`: reusable questions, learning checks, case studies, attempts, and server-side scoring
+- `portal/` and `templates/admin_portal/`: permission-driven Django Template management portal at `/manage/`
 
 The access-control groups are `SUPER_ADMIN`, `ADMIN`, `ACADEMIC_MANAGER`, `CONTENT_MANAGER`, `TEACHER`, and `STUDENT`. These are Django authentication Groups. Classroom cohorts use the separate `students.StudentGroup` model.
 

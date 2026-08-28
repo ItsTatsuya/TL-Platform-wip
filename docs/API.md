@@ -1,459 +1,150 @@
-# Tella Backend API Reference
+# Tella Platform API
 
-This document tracks the implemented Django REST API. Django is the source of truth; Moodle consumes these APIs and must not reproduce authorization, curriculum, progress, or scoring rules.
+Version: `v1` · Base URL: `http://127.0.0.1:8000/api/v1/`
 
-## Environments and conventions
+Django is the source of truth. Moodle and other clients consume this API and must not implement authorization, enrollment, progress, or scoring rules locally.
 
-Local base URL:
+For step-by-step data creation with portal/API examples, see [DATA_ENTRY_GUIDE.md](DATA_ENTRY_GUIDE.md).
 
-```text
-http://127.0.0.1:8000/api/v1/
+## Conventions
+
+- IDs are UUIDs unless noted otherwise; timestamps are ISO-8601 UTC.
+- Send JSON with `Content-Type: application/json`.
+- Authenticated requests use `Authorization: Bearer <access-token>`.
+- Collections currently return JSON arrays (pagination is not enabled yet).
+- `404` is also used for inaccessible objects to avoid resource-discovery leaks.
+- Errors use DRF's `detail` field; validation errors may return field-keyed arrays.
+
+```json
+{"detail": "You are not enrolled in this course."}
 ```
-
-All routes below are relative to `/api/v1/`. UUIDs are serialized as strings and timestamps use ISO 8601. Send and accept JSON unless an endpoint states otherwise.
-
-Authenticated requests use:
-
-```http
-Authorization: Bearer <access-token>
-Content-Type: application/json
-```
-
-Collection endpoints currently return JSON arrays. Pagination will be introduced before large production datasets are exposed.
 
 ## Authentication
 
 ### Login
 
-```http
-POST /api/v1/auth/login/
-```
-
-Request:
+`POST /auth/login/`
 
 ```json
-{
-  "email": "student@example.com",
-  "password": "your-password"
-}
+{"email": "student@example.com", "password": "your-password"}
 ```
 
-Response:
+Returns `access` and `refresh`. Access tokens default to 15 minutes; refresh tokens default to seven days and rotate with blacklist protection.
 
-```json
-{
-  "refresh": "<refresh-token>",
-  "access": "<access-token>"
-}
-```
+### Refresh and logout
 
-Access-token lifetime defaults to 15 minutes. Refresh-token lifetime defaults to seven days.
-
-### Refresh
-
-```http
-POST /api/v1/auth/refresh/
-```
-
-```json
-{
-  "refresh": "<refresh-token>"
-}
-```
-
-Refresh tokens rotate. The old token is blacklisted after a successful refresh.
-
-### Logout
-
-```http
-POST /api/v1/auth/logout/
-Authorization: Bearer <access-token>
-```
-
-```json
-{
-  "refresh": "<refresh-token>"
-}
-```
-
-Successful logout returns `204 No Content` and blacklists the refresh token.
+- `POST /auth/refresh/` with `{"refresh":"<refresh-token>"}`.
+- `POST /auth/logout/` (Bearer token required) with the same refresh payload. Returns `204` and blacklists the token.
 
 ### Current user
 
-```http
-GET /api/v1/auth/me/
-```
-
-Response shape:
+`GET /auth/me/` (Bearer token required)
 
 ```json
-{
-  "id": "3af22e2c-58a7-4a6d-88e6-cb20ad501d55",
-  "email": "teacher@example.com",
-  "username": "teacher",
-  "first_name": "Ada",
-  "last_name": "Lovelace",
-  "display_name": "Ada Lovelace",
-  "is_active": true,
-  "date_joined": "2026-08-27T12:00:00Z",
-  "groups": ["TEACHER"],
-  "permissions": ["accounts.view_user", "curriculum.view_course"]
-}
+{"id":"<uuid>","email":"teacher@example.com","username":"teacher","first_name":"Ada","last_name":"Lovelace","display_name":"Ada Lovelace","is_active":true,"date_joined":"2026-08-28T10:00:00Z","groups":["TEACHER"],"permissions":["accounts.view_user"]}
 ```
 
-### Moodle SSO exchange
+### Moodle exchange
 
-```http
-POST /api/v1/auth/moodle/exchange/
-```
+`POST /auth/moodle/exchange/` is an unauthenticated signed bridge. Request fields: `moodle_user_id`, `email`, optional names, Unix `timestamp`, and HMAC-SHA256 `signature`. Sign `{moodle_user_id}|{lowercase_email}|{timestamp}` with `MOODLE_SSO_SECRET`; timestamps older than five minutes are rejected. Django creates/resolves an `ExternalUserMapping` (`MOODLE`) and returns JWTs plus the user.
 
-Request:
+## Authorization
 
-```json
-{
-  "moodle_user_id": "42",
-  "email": "student@example.com",
-  "first_name": "Student",
-  "last_name": "Example",
-  "timestamp": 1787822400,
-  "signature": "<hex-hmac-sha256>"
-}
-```
+Roles are Django Groups: `SUPER_ADMIN`, `ADMIN`, `ACADEMIC_MANAGER`, `CONTENT_MANAGER`, `TEACHER`, and `STUDENT`. `StudentGroup` is a separate class/cohort model. Students see only published curriculum for active, unexpired enrollments pinned to the requested CourseVersion. Teachers see only students in assigned StudentGroups. Sensitive writes are checked by API permissions and domain services.
 
-The signature payload is:
+## Curriculum
 
-```text
-{moodle_user_id}|{lowercase_email}|{timestamp}
-```
+Hierarchy: `Program → Course → CourseVersion → Chapter → Subtopic → LearningActivity`.
 
-Sign it with `MOODLE_SSO_SECRET`. The timestamp must be within five minutes. A successful exchange returns `access`, `refresh`, and the serialized user. Django resolves or creates an `ExternalUserMapping` for provider `MOODLE`.
+All resources use standard collection `GET`/`POST` and detail `GET`/`PUT`/`PATCH`/`DELETE`, subject to permissions.
 
-## Authorization summary
-
-- `SUPER_ADMIN` receives all current Django permissions.
-- `ADMIN` can manage users and operational curriculum data but cannot manage permissions or grant `SUPER_ADMIN`.
-- `ACADEMIC_MANAGER` can create and edit the curriculum and has publishing permissions.
-- `CONTENT_MANAGER` can edit permitted content but cannot publish.
-- `TEACHER` reads only StudentGroups assigned to them and students belonging to those groups.
-- `STUDENT` only receives published curriculum for actively enrolled courses.
-
-Unsafe curriculum methods require the corresponding Django model permission. Publishing is checked separately in the API and service layer.
-
-## Curriculum resources
-
-The hierarchy is:
-
-```text
-Program
-└── Course
-    └── CourseVersion
-        └── Chapter
-            └── Subtopic
-                └── LearningActivity
-```
-
-Supported publication statuses are:
-
-```text
-DRAFT
-IN_REVIEW
-APPROVED
-PUBLISHED
-ARCHIVED
-```
-
-### Programs
-
-| Method | Route | Purpose |
+| Resource | Routes and actions | Key fields |
 | --- | --- | --- |
-| `GET` | `/programs/` | List accessible programs with nested courses. |
-| `POST` | `/programs/` | Create a program. Requires `curriculum.add_program`. |
-| `GET` | `/programs/{id}/` | Retrieve a program. |
-| `PUT/PATCH` | `/programs/{id}/` | Update a program. |
-| `DELETE` | `/programs/{id}/` | Delete where protected academic relationships allow it. |
+| Programs | `/programs/`, `/programs/{id}/` | `name`, unique `code`, `description`, `grade`, `status`, nested courses |
+| Courses | `/courses/`, `/courses/{id}/`; `/courses/{id}/chapters/`, `/publish/`, `/duplicate/` | `program`, `name`, unique `code`, `status`, `display_order`, nested versions |
+| Versions | `/course-versions/`, `/course-versions/{id}/`; `POST /{id}/reorder_chapters/` | unique `(course, version_number)`, `name`, `status`, `published_at` |
+| Chapters | `/chapters/`, `/chapters/{id}/`; `/subtopics/`, `/reorder_subtopics/` | `course_version`, title/slug/number, `completion_rule`, nested subtopics |
+| Subtopics | `/subtopics/`, `/subtopics/{id}/`; `/activities/`, `/reorder_activities/` | `chapter`, title/slug, objectives, nested activities |
+| Activities | `/activities/`, `/activities/{id}/` | `subtopic`, `activity_type`, title, required flag, completion rule, status |
 
-Create request:
+Statuses: `DRAFT`, `IN_REVIEW`, `APPROVED`, `PUBLISHED`, `ARCHIVED`. Publishing never exposes draft records to students.
 
-```json
-{
-  "name": "Grade 9 Mathematics",
-  "code": "grade-9-mathematics",
-  "description": "Core mathematics curriculum.",
-  "grade": "9",
-  "status": "DRAFT"
-}
-```
+## Content and media
 
-### Courses
-
-| Method | Route | Purpose |
+| Resource | Route | Core fields |
 | --- | --- | --- |
-| `GET` | `/courses/` | List accessible courses and their permitted hierarchy. |
-| `POST` | `/courses/` | Create a course. |
-| `GET` | `/courses/{id}/` | Retrieve a course, versions, and nested structure. |
-| `PUT/PATCH` | `/courses/{id}/` | Update a course. |
-| `DELETE` | `/courses/{id}/` | Delete where protected history allows it. |
-| `GET` | `/courses/{id}/chapters/` | List accessible chapters across the course's visible versions. |
-| `POST` | `/courses/{id}/publish/` | Publish a selected course version. |
-| `POST` | `/courses/{id}/duplicate/` | Duplicate the complete course hierarchy as drafts. |
+| Activity content | `/activity-content/` | `activity`, `content_type`, flexible `content` JSON |
+| Videos | `/videos/` | media/thumbnail, title, duration, transcript, captions, completion percentage (default 90) |
+| Experiments | `/experiments/` | activity, type (`HTML_INTERACTIVE`, `EMBEDDED`, `SIMULATION`, `QUESTION_BASED`), instructions/configuration |
+| Practice sets/items | `/practice-sets/`, `/practice-items/` | ordered video/question/practice sequence |
+| Media assets | `/media-assets/` | file metadata, storage path, CDN URL, status |
 
-Create request:
+Media stores metadata and supports S3-compatible storage; large videos are not streamed through Django.
 
-```json
-{
-  "program": "<program-uuid>",
-  "name": "Grade 9 Mathematics",
-  "code": "math-9",
-  "description": "Mathematics course",
-  "thumbnail": null,
-  "status": "DRAFT",
-  "display_order": 0
-}
-```
+## Students and enrollment
 
-Publish request:
-
-```json
-{
-  "version_id": "<course-version-uuid>"
-}
-```
-
-The parent Program must already be published, and the version must contain at least one Chapter. Publication sets `published_at` and publishes the parent Course.
-
-Duplicate request:
-
-```json
-{
-  "name": "Grade 9 Mathematics Copy",
-  "code": "math-9-copy"
-}
-```
-
-`code` is required and globally unique.
-
-### Course versions
-
-| Method | Route | Purpose |
+| Resource | Routes | Rules |
 | --- | --- | --- |
-| `GET/POST` | `/course-versions/` | List or create versions. |
-| `GET/PUT/PATCH/DELETE` | `/course-versions/{id}/` | Retrieve or modify a version. |
-| `POST` | `/course-versions/{id}/reorder_chapters/` | Transactionally reorder every Chapter. |
-
-Create request:
+| Students | `/students/`, `/students/{id}/` | Teachers see assigned-cohort students; students see themselves |
+| Student groups | `/student-groups/`, `/student-groups/{id}/` | Cohort name/code/grade/year/teacher/status |
+| Memberships | `/student-group-members/`, `/student-group-members/{id}/`; `POST /student-groups/{id}/members/` | Unique `(student_group, student)`; body `{"student":"<uuid>"}` |
+| Enrollments | `/enrollments/`, `/enrollments/{id}/` | Exact CourseVersion; `ACTIVE`, `COMPLETED`, `SUSPENDED`, `EXPIRED`, `CANCELLED` |
+| Assignments | `/course-assignments/`, `/course-assignments/{id}/` | Exactly one of `student_group` or `student`; atomic enrollment creation |
+| LMS mappings | `/external-user-mappings/`, `/external-user-mappings/{id}/` | Unique `(provider, external_user_id)` |
 
 ```json
-{
-  "course": "<course-uuid>",
-  "version_number": 2026,
-  "name": "2026 Curriculum",
-  "status": "DRAFT"
-}
+{"student":"<user-uuid>","course":"<course-uuid>","course_version":"<version-uuid>","status":"ACTIVE","expires_at":null}
 ```
 
-Historical progress remains attached to its CourseVersion. The combination of Course and `version_number` is unique.
+## Progress
 
-### Chapters
+Progress is persisted and propagated: `ActivityProgress → SubtopicProgress → ChapterProgress → CourseProgress`.
 
-| Method | Route | Purpose |
+| Method | Route | Description |
 | --- | --- | --- |
-| `GET/POST` | `/chapters/` | List or create chapters. |
-| `GET/PUT/PATCH/DELETE` | `/chapters/{id}/` | Retrieve or modify a chapter. |
-| `GET` | `/chapters/{id}/subtopics/` | List accessible Subtopics. |
-| `POST` | `/chapters/{id}/reorder_subtopics/` | Transactionally reorder every Subtopic. |
-
-Create request:
-
-```json
-{
-  "course_version": "<course-version-uuid>",
-  "title": "Algebra",
-  "slug": "algebra",
-  "description": "Introduction to algebra.",
-  "chapter_number": 1,
-  "estimated_minutes": 90,
-  "is_required": true,
-  "status": "DRAFT",
-  "display_order": 0,
-  "completion_rule": {
-    "required_subtopics": true,
-    "case_study_required": true,
-    "learning_check_required": true,
-    "learning_check_pass_percentage": 70
-  }
-}
-```
-
-Chapter slugs and chapter numbers are unique within a CourseVersion.
-
-### Subtopics
-
-| Method | Route | Purpose |
-| --- | --- | --- |
-| `GET/POST` | `/subtopics/` | List or create Subtopics. |
-| `GET/PUT/PATCH/DELETE` | `/subtopics/{id}/` | Retrieve or modify a Subtopic. |
-| `GET` | `/subtopics/{id}/activities/` | List accessible activities. |
-| `POST` | `/subtopics/{id}/reorder_activities/` | Transactionally reorder every activity. |
-
-Create request:
+| `GET` | `/me/progress/` | Current user's course snapshots |
+| `GET` | `/me/courses/{course_id}/progress/` | Course snapshot |
+| `GET` | `/me/chapters/{chapter_id}/progress/` | Chapter snapshot |
+| `GET` | `/me/activities/{activity_id}/progress/` | Activity snapshot |
+| `POST` | `/activities/{activity_id}/start/` | Start enrolled activity |
+| `POST` | `/activities/{activity_id}/progress/` | Record percentage/time/metadata |
+| `POST` | `/activities/{activity_id}/complete/` | Complete server-side |
 
 ```json
-{
-  "chapter": "<chapter-uuid>",
-  "title": "Variables",
-  "slug": "variables",
-  "description": "Using variables in expressions.",
-  "learning_objectives": ["Identify variables", "Evaluate expressions"],
-  "estimated_minutes": 30,
-  "display_order": 0,
-  "is_required": true,
-  "status": "DRAFT"
-}
+{"progress_percentage":75,"time_spent_seconds":420,"metadata":{"player":"moodle"}}
 ```
 
-### Learning activities
+Percentages must be 0–100. Writes require an active, unexpired, exact-version enrollment and use transactions/row locks. Legacy workshop clients may continue using `POST /progress/` with `activity`, `status`, `extra`, and `event`.
 
-| Method | Route | Purpose |
-| --- | --- | --- |
-| `GET/POST` | `/activities/` | List or create activities. |
-| `GET/PUT/PATCH/DELETE` | `/activities/{id}/` | Retrieve or modify an activity. |
-| `GET` | `/activities/{id}/workshop/` | Retrieve an activity with workshop configuration. |
+## Assessments
 
-Create request:
-
-```json
-{
-  "subtopic": "<subtopic-uuid>",
-  "activity_type": "CONCEPT_VIDEO",
-  "title": "Understanding variables",
-  "description": "Concept introduction.",
-  "display_order": 0,
-  "is_required": true,
-  "estimated_minutes": 10,
-  "completion_rule": {"watch_percentage": 90},
-  "status": "DRAFT"
-}
-```
-
-Current activity types:
-
-```text
-CONCEPT_VIDEO, EXPERIMENT, CONCEPT_OVERVIEW, OBSERVE_LEARN_PRACTICE,
-HOMEWORK, INTERACTIVE_WORKSHOP, SIMULATION, READING, PDF, INTERACTIVE,
-ASSIGNMENT, PROJECT, LIVE_CLASS, FLASHCARD
-```
-
-### Reordering payload
-
-All reorder actions require every child UUID exactly once:
-
-```json
-{
-  "ids": [
-    "<first-child-uuid>",
-    "<second-child-uuid>"
-  ]
-}
-```
-
-Missing, duplicate, or unrelated IDs are rejected. Reordering locks the affected rows and updates them transactionally.
-
-## Student curriculum filtering
-
-For users in the `STUDENT` Django Group, the backend automatically enforces:
-
-1. an active Enrollment for the Course;
-2. a published Program and Course;
-3. a published CourseVersion;
-4. published Chapters, Subtopics, and LearningActivities.
-
-Inaccessible objects return `404`; Moodle must not receive hidden curriculum and then decide whether to render it.
-
-## Content and media resources
-
-Phase 3 separates flexible activity content and object-storage metadata from the curriculum hierarchy.
-
-| Resource | Collection route | Purpose |
-| --- | --- | --- |
-| Activity content | `/activity-content/` | Flexible JSON content for a LearningActivity. |
-| Videos | `/videos/` | Media reference, transcript, captions, duration, and completion rule. |
-| Experiments | `/experiments/` | Interactive or embedded experiment configuration. |
-| Practice sets | `/practice-sets/` | Observe-Learn-Practice sequence definition. |
-| Practice items | `/practice-items/` | Ordered video/question/practice entries. |
-| Media assets | `/media-assets/` | Storage path/CDN metadata for local or object storage. |
-
-Each collection supports standard `GET`/`POST` operations and each `/{id}/` route supports `GET`, `PUT`, `PATCH`, and `DELETE`, subject to Django permissions and protected relationships.
-
-## Students, cohorts, enrollment, and assignments
-
-`StudentGroup` is a real class/cohort and is distinct from the Django authentication `Group` used for RBAC.
-
-| Method | Route | Purpose |
-| --- | --- | --- |
-| `GET` | `/students/` and `/students/{id}/` | Scoped student directory. Teachers see assigned groups; students see themselves. |
-| `GET/POST` | `/student-groups/` | List or create cohorts. |
-| `GET/PUT/PATCH/DELETE` | `/student-groups/{id}/` | Manage a cohort. |
-| `POST` | `/student-groups/{id}/members/` | Add a Django `STUDENT` user with `{"student": "<uuid>"}`. |
-| `GET/POST` | `/student-group-members/` | List or create memberships. |
-| `GET/POST` | `/enrollments/` | List or create version-pinned enrollments. |
-| `GET/POST` | `/course-assignments/` | Assign a course version to exactly one cohort or student. |
-| `GET/POST` | `/external-user-mappings/` | Manage provider-to-Django-user identities. |
-
-Enrollment statuses are `ACTIVE`, `COMPLETED`, `SUSPENDED`, `EXPIRED`, and `CANCELLED`. Student curriculum access requires `ACTIVE`, an unexpired `expires_at`, and the exact CourseVersion containing the requested content. Assignment and enrollment creation are atomic; group assignment creates enrollments for current members and refuses to overwrite an active enrollment in another version.
-
-Enrollment request:
-
-```json
-{
-  "student": "<user-uuid>",
-  "course": "<course-uuid>",
-  "course_version": "<course-version-uuid>",
-  "status": "ACTIVE",
-  "expires_at": null
-}
-```
-
-Course assignment requires exactly one of `student_group` or `student`.
-
-## Workshop and legacy progress endpoints
-
-These routes support the current Business Mathematics Moodle workshop while the later progress and assessment phases are developed.
-
-| Method | Route | Purpose |
-| --- | --- | --- |
-| `GET/POST` | `/workshop-models/` | List or save the authenticated learner's models. |
-| `GET/PUT/PATCH` | `/workshop-models/{id}/` | Retrieve or update an owned model. |
-| `POST` | `/progress/` | Upsert current workshop activity progress. |
-| `GET` | `/gamification/me/` | Return the current user's points and badges. |
-| `GET` | `/career/opportunities/` | Return published career-opportunity stubs. |
-| `GET` | `/health/` | Public service health response: `{"ok": true}`. |
-
-Progress request:
-
-```json
-{
-  "activity": "<activity-uuid>",
-  "status": "in_progress",
-  "extra": {"screen": "B"},
-  "event": "explore_slopes"
-}
-```
-
-Supported workshop events are `load_sample`, `explore_slopes`, `reach_peak`, and `export_report`.
-
-## Common status codes
-
-| Code | Meaning |
+| Operation | Route |
 | --- | --- |
-| `200` | Successful read or update. |
-| `201` | Resource created. |
-| `204` | Successful logout or reorder with no body. |
-| `400` | Invalid request or domain validation failure. |
-| `401` | Missing, expired, or invalid authentication. |
-| `403` | Authenticated but missing the required permission. |
-| `404` | Resource does not exist or is inaccessible to this user. |
-| `409` | Reserved for future explicit conflict responses. |
+| Question bank/options | `/questions/`, `/question-options/` |
+| Case studies/links | `/case-studies/`, `/case-study-questions/` |
+| Learning checks | `/learning-checks/`, `/learning-checks/{id}/` |
+| Start attempt | `POST /learning-checks/{id}/start/` |
+| Submit attempt | `POST /learning-checks/{id}/submit/` |
+| Own results | `GET /learning-checks/{id}/results/` |
 
-## Maintenance rule
+Question types: `MCQ`, `MULTI_SELECT`, `TRUE_FALSE`, `NUMERIC`, `SHORT_TEXT`, `LONG_TEXT`, `MATH_EXPRESSION`.
 
-Update this file in the same change whenever an API route, payload, permission requirement, status, or response shape changes. API implementation and tests remain authoritative if this document becomes inconsistent.
+```json
+{"attempt_id":"<attempt-uuid>","answers":[{"question":"<question-uuid>","answer":"<option-uuid>"}],"time_spent_seconds":95}
+```
+
+The server verifies question membership, enrollment, ownership, publication, and `max_attempts`; calculates marks/pass-fail from canonical data; ignores client scores; and updates chapter learning-check progress.
+
+## Workshop compatibility
+
+`GET/POST /workshop-models/`, `GET/PUT/PATCH /workshop-models/{id}/`, `GET /gamification/me/`, `GET /career/opportunities/`, and public `GET /health/` remain available for the existing Moodle workshop.
+
+## Management portal
+
+The Django Template portal is at `/manage/`, separate from `/admin/`. Current screens cover dashboard, programs, courses, student groups, enrollments, questions, learning checks, user/group access, and permission management. Forms use CSRF protection and every view checks Django permissions server-side.
+
+## Status codes and client rules
+
+`200` success · `201` created · `204` no content · `400` validation/domain error · `401` missing/invalid JWT · `403` authenticated but unauthorized · `404` missing or intentionally hidden resource.
+
+Clients must use `/api/v1/`, treat IDs as opaque, send JWTs, never calculate authoritative scores/progress, and never assume course access without a valid enrollment.
