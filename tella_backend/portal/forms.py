@@ -21,7 +21,7 @@ class ProgramForm(forms.ModelForm):
 class CourseForm(forms.ModelForm):
     class Meta:
         model = Course
-        fields = ("program", "name", "code", "description", "status", "display_order")
+        fields = ("program", "name", "code", "description", "thumbnail", "status", "display_order")
 
 
 class CourseVersionForm(forms.ModelForm):

@@ -26,7 +26,7 @@ def accessible_courses(user) -> QuerySet[Course]:
 
 def course_structure_queryset(user) -> QuerySet[Course]:
     published_only = is_student(user)
-    activities = LearningActivity.objects.select_related("content").order_by("display_order")
+    activities = LearningActivity.objects.select_related("content", "workshop_config").order_by("display_order")
     subtopics = Subtopic.objects.order_by("display_order")
     chapters = Chapter.objects.order_by("display_order")
     versions = CourseVersion.objects.order_by("-version_number")

@@ -8,6 +8,8 @@ from rest_framework.test import APIClient
 
 from accounts.constants import GroupName
 from accounts.models import User
+from content.models import ActivityContent
+from media_library.models import MediaAsset
 from students.models import Enrollment
 
 from .models import Chapter, Course, CourseVersion, LearningActivity, Program, PublishStatus, Subtopic
@@ -91,10 +93,67 @@ class CurriculumApiTests(CurriculumFixtureMixin, TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data["created_by"], self.academic.id)
 
+    def test_academic_manager_can_create_course_with_thumbnail(self):
+        thumbnail = MediaAsset.objects.create(
+            file_name="science-cover.webp",
+            file_type="IMAGE",
+            mime_type="image/webp",
+            file_size=1024,
+            storage_path="course-thumbnails/science-cover.webp",
+            status=MediaAsset.Status.READY,
+            uploaded_by=self.academic,
+        )
+        self.client.force_authenticate(self.academic)
+
+        response = self.client.post(reverse("course-list"), {
+            "program": str(self.program.id),
+            "name": "Science",
+            "code": "science-with-thumbnail",
+            "description": "Science course",
+            "thumbnail": str(thumbnail.id),
+            "status": PublishStatus.DRAFT,
+            "display_order": 2,
+        }, format="json")
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["thumbnail"], thumbnail.id)
+        self.assertEqual(Course.objects.get(pk=response.data["id"]).thumbnail, thumbnail)
+
     def test_content_manager_cannot_publish_course_api(self):
         self.client.force_authenticate(self.content_manager)
         response = self.client.post(reverse("course-publish", args=[self.course.id]), {"version_id": str(self.version.id)}, format="json")
         self.assertEqual(response.status_code, 403)
+
+    def test_activity_representation_includes_nullable_content_record(self):
+        self.client.force_authenticate(self.academic)
+        response = self.client.get(reverse("activity-detail", args=[self.activity.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.data["content_record"])
+        self.assertIsNone(response.data["content"])
+
+        content = ActivityContent.objects.create(
+            activity=self.activity,
+            content_type="application/vnd.tella.overview+json",
+            content={"blocks": [{"type": "text", "value": "Hello"}]},
+        )
+        response = self.client.get(reverse("activity-detail", args=[self.activity.id]))
+        self.assertEqual(response.data["content"], content.content)
+        self.assertEqual(response.data["content_record"]["id"], str(content.id))
+        self.assertEqual(response.data["content_record"]["content_type"], content.content_type)
+
+    def test_nested_course_content_prefetch_has_constant_query_cost(self):
+        ActivityContent.objects.create(activity=self.activity, content={"value": 1})
+        second = LearningActivity.objects.create(
+            subtopic=self.subtopic, activity_type=LearningActivity.ActivityType.READING,
+            title="Reading", display_order=1, created_by=self.academic, updated_by=self.academic,
+        )
+        ActivityContent.objects.create(activity=second, content={"value": 2})
+        self.client.force_authenticate(self.academic)
+        with self.assertNumQueries(9):
+            response = self.client.get(reverse("course-detail", args=[self.course.id]))
+            self.assertEqual(response.status_code, 200)
+            records = response.data["versions"][0]["chapters"][0]["subtopics"][0]["activities"]
+            self.assertEqual([row["content_record"]["content"]["value"] for row in records], [1, 2])
 
     def test_student_can_only_see_enrolled_published_course(self):
         self.publish_tree()

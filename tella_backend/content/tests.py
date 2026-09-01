@@ -81,6 +81,34 @@ class ContentApiTests(ContentFixtureMixin, TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data["uploaded_by"], self.manager.id)
 
+    def test_content_manager_can_create_and_patch_activity_content(self):
+        self.client.force_authenticate(self.manager)
+        created = self.client.post(reverse("activity-content-list"), {
+            "activity": str(self.experiment_activity.id),
+            "content_type": "application/vnd.tella.overview+json",
+            "content": {"title": "Overview", "extra": {"preserved": True}},
+        }, format="json")
+        self.assertEqual(created.status_code, 201)
+        updated = self.client.patch(reverse("activity-content-detail", args=[created.data["id"]]), {
+            "content": {"title": "Updated", "extra": {"preserved": True}},
+        }, format="json")
+        self.assertEqual(updated.status_code, 200)
+        self.assertEqual(updated.data["content"]["title"], "Updated")
+        self.assertTrue(updated.data["content"]["extra"]["preserved"])
+
+    def test_student_cannot_create_or_patch_activity_content(self):
+        record = ActivityContent.objects.create(activity=self.experiment_activity, content={"title": "Original"})
+        Enrollment.objects.create(student=self.student, course=self.course, course_version=self.version)
+        self.client.force_authenticate(self.student)
+        created = self.client.post(reverse("activity-content-list"), {
+            "activity": str(self.practice_activity.id), "content": {},
+        }, format="json")
+        updated = self.client.patch(reverse("activity-content-detail", args=[record.id]), {
+            "content": {"title": "No"},
+        }, format="json")
+        self.assertEqual(created.status_code, 403)
+        self.assertEqual(updated.status_code, 403)
+
     def test_student_reads_video_for_enrolled_published_course(self):
         Enrollment.objects.create(student=self.student, course=self.course, course_version=self.version)
         self.client.force_authenticate(self.student)

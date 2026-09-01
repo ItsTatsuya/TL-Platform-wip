@@ -5,6 +5,15 @@ from workshops.models import WorkshopConfig
 from .models import Chapter, Course, CourseVersion, LearningActivity, Program, Subtopic
 
 
+class ActivityContentRecordSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    activity = serializers.PrimaryKeyRelatedField(read_only=True)
+    content_type = serializers.CharField(read_only=True)
+    content = serializers.JSONField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+
 class WorkshopConfigSerializer(serializers.ModelSerializer):
     config = serializers.SerializerMethodField()
 
@@ -19,6 +28,7 @@ class WorkshopConfigSerializer(serializers.ModelSerializer):
 class LearningActivitySerializer(serializers.ModelSerializer):
     workshop = WorkshopConfigSerializer(source="workshop_config", read_only=True)
     content = serializers.JSONField(source="content.content", read_only=True, default=dict)
+    content_record = ActivityContentRecordSerializer(source="content", read_only=True, default=None)
 
     class Meta:
         model = LearningActivity
@@ -26,6 +36,7 @@ class LearningActivitySerializer(serializers.ModelSerializer):
             "id", "subtopic", "activity_type", "title", "description", "display_order",
             "is_required", "estimated_minutes", "completion_rule", "status",
             "created_by", "updated_by", "created_at", "updated_at", "workshop", "content",
+            "content_record",
         )
         read_only_fields = ("created_by", "updated_by", "created_at", "updated_at")
 

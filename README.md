@@ -67,3 +67,7 @@ node moodle/local/tella_workshop/build-amd.js
 SSO secret (Moodle plugin setting and Django `MOODLE_SSO_SECRET`) defaults to `tella-dev-sso-secret-change-me`.
 
 See `docs/` for API notes, Moodle admin install, and known limitations.
+
+## Admin curriculum workspace
+
+The Next.js administration app lives in `admin-platform/`. See `admin-platform/README.md` for setup and supported scope.
