@@ -12,7 +12,7 @@ from curriculum.views import (
 from content.views import ActivityContentViewSet, ExperimentViewSet, PracticeItemViewSet, PracticeSetViewSet, VideoViewSet
 from media_library.views import MediaAssetViewSet
 from progress.views import ActivityProgressActionView, CareerOpportunityListView, GamificationMeView, ProgressUpsertView
-from progress.progress_views import MyActivityProgressView, MyChapterProgressView, MyCourseProgressView, MyProgressView
+from progress.progress_views import MyActivityProgressListView, MyActivityProgressView, MyChapterProgressView, MyCourseProgressView, MyProgressView
 from assessments.views import CaseStudyQuestionViewSet, CaseStudyViewSet, LearningCheckViewSet, QuestionOptionViewSet, QuestionViewSet
 from students.views import (
     CourseAssignmentViewSet, EnrollmentViewSet, ExternalUserMappingViewSet,
@@ -54,6 +54,7 @@ urlpatterns = [
     path("api/v1/progress/", ProgressUpsertView.as_view(), name="progress_upsert"),
     path("api/v1/activities/<uuid:activity_id>/<str:action>/", ActivityProgressActionView.as_view(), name="activity_progress_action"),
     path("api/v1/me/progress/", MyProgressView.as_view(), name="my_progress"),
+    path("api/v1/me/activity-progress/", MyActivityProgressListView.as_view(), name="my_activity_progress_list"),
     path("api/v1/me/courses/<uuid:course_id>/progress/", MyCourseProgressView.as_view(), name="my_course_progress"),
     path("api/v1/me/chapters/<uuid:chapter_id>/progress/", MyChapterProgressView.as_view(), name="my_chapter_progress"),
     path("api/v1/me/activities/<uuid:activity_id>/progress/", MyActivityProgressView.as_view(), name="my_activity_progress"),

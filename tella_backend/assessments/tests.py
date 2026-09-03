@@ -23,8 +23,21 @@ class AssessmentTests(TestCase):
         chapter = Chapter.objects.create(course_version=version, title="Chapter", slug="assessment-chapter", chapter_number=1, display_order=1, status="PUBLISHED")
         self.enrollment = Enrollment.objects.create(student=self.student, course=course, course_version=version)
         self.check = LearningCheck.objects.create(chapter=chapter, title="Check", passing_score=50, max_attempts=1, status="PUBLISHED")
-        question = Question.objects.create(question_type="MCQ", question_text="Two plus two?", marks=2, status="PUBLISHED")
-        correct = QuestionOption.objects.create(question=question, option_text="4", is_correct=True, display_order=1)
+        question = Question.objects.create(
+            question_type="MCQ",
+            question_text="Two plus two?",
+            explanation="The answer is four.",
+            metadata={"correct_answer": "4"},
+            marks=2,
+            status="PUBLISHED",
+        )
+        correct = QuestionOption.objects.create(
+            question=question,
+            option_text="4",
+            is_correct=True,
+            explanation="Correct option",
+            display_order=1,
+        )
         QuestionOption.objects.create(question=question, option_text="5", display_order=2)
         self.link = LearningCheckQuestion.objects.create(learning_check=self.check, question=question, marks=2, display_order=1)
         self.correct_option = correct
@@ -64,3 +77,16 @@ class AssessmentTests(TestCase):
         client = APIClient()
         client.force_authenticate(self.student)
         self.assertEqual(client.get("/api/v1/questions/").status_code, 403)
+
+    def test_student_learning_check_does_not_expose_answers(self):
+        client = APIClient()
+        client.force_authenticate(self.student)
+
+        response = client.get(f"/api/v1/learning-checks/{self.check.id}/")
+
+        self.assertEqual(response.status_code, 200)
+        question = response.data["questions"][0]["question_detail"]
+        self.assertNotIn("metadata", question)
+        self.assertNotIn("explanation", question)
+        self.assertNotIn("is_correct", question["options"][0])
+        self.assertNotIn("explanation", question["options"][0])

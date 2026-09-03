@@ -42,3 +42,36 @@ class ProgressServiceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["progress_percentage"], "50.00")
         self.assertEqual(client.get("/api/v1/me/progress/").status_code, 200)
+
+    def test_student_can_list_own_activity_progress_for_a_course(self):
+        ProgressService.record_activity_progress(
+            student=self.student,
+            activity=self.activity,
+            enrollment=self.enrollment,
+            progress_percentage=50,
+        )
+        other_student = User.objects.create_user(email="other-progress@example.com", password="pass12345")
+        other_student.groups.add(Group.objects.get(name=GroupName.STUDENT))
+        other_enrollment = Enrollment.objects.create(
+            student=other_student,
+            course=self.enrollment.course,
+            course_version=self.enrollment.course_version,
+        )
+        ProgressService.record_activity_progress(
+            student=other_student,
+            activity=self.activity,
+            enrollment=other_enrollment,
+            progress_percentage=100,
+        )
+
+        client = APIClient()
+        client.force_authenticate(self.student)
+        response = client.get(
+            "/api/v1/me/activity-progress/",
+            {"course": str(self.enrollment.course_id)},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["activity"], self.activity.id)
+        self.assertEqual(response.data[0]["progress_percentage"], "50.00")

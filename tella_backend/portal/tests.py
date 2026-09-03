@@ -1,5 +1,8 @@
+import tempfile
+
 from django.contrib.auth.models import Group
 from django.core.management import call_command
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
@@ -26,6 +29,21 @@ class PortalTests(TestCase):
     def test_content_manager_cannot_open_user_access(self):
         self.client.force_login(self.content)
         self.assertEqual(self.client.get(reverse("portal-user-access", args=[self.admin.id])).status_code, 403)
+
+    def test_content_manager_can_open_authorized_content_resources(self):
+        self.client.force_login(self.content)
+        self.assertEqual(self.client.get(reverse("portal-list", args=["experiments"])).status_code, 200)
+        self.assertEqual(self.client.get(reverse("portal-create", args=["media-assets"])).status_code, 200)
+
+    def test_content_manager_can_upload_media_from_portal(self):
+        self.client.force_login(self.content)
+        with tempfile.TemporaryDirectory() as media_root, self.settings(MEDIA_ROOT=media_root):
+            response = self.client.post(
+                reverse("portal-create", args=["media-assets"]),
+                {"upload": SimpleUploadedFile("portal-video.mp4", b"video", content_type="video/mp4")},
+            )
+            self.assertEqual(response.status_code, 302)
+            self.assertTrue(self.content.media_assets_uploaded.filter(file_name="portal-video.mp4", status="READY").exists())
 
     def test_admin_cannot_assign_super_admin(self):
         self.client.force_login(self.admin)

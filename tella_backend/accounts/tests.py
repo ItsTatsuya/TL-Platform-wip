@@ -1,3 +1,7 @@
+import tempfile
+from io import StringIO
+from pathlib import Path
+
 from django.contrib.auth.models import Group, Permission
 from django.core.exceptions import PermissionDenied
 from django.core.management import call_command
@@ -10,6 +14,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .constants import GroupName
 from .models import User
 from .services import assign_group
+from curriculum.models import Course, LearningActivity
+from students.models import Enrollment
 
 
 class AuthenticationApiTests(TestCase):
@@ -96,3 +102,74 @@ class GroupPermissionTests(TestCase):
         with self.assertRaises(PermissionDenied):
             assign_group(actor=admin, user=target, group=Group.objects.get(name=GroupName.SUPER_ADMIN))
         self.assertFalse(target.groups.filter(name=GroupName.SUPER_ADMIN).exists())
+
+
+class DemoSeedCommandTests(TestCase):
+    def test_seed_creates_separate_role_accounts_and_student_enrollment(self):
+        output = StringIO()
+        call_command("setup_groups", stdout=output)
+        call_command("seed_workshop", stdout=output)
+        call_command("seed_workshop", stdout=output)
+
+        admin = User.objects.get(email="admin@example.com")
+        manager = User.objects.get(email="content@example.com")
+        student = User.objects.get(email="student@example.com")
+
+        self.assertTrue(admin.check_password("Admin123!"))
+        self.assertTrue(manager.check_password("Content123!"))
+        self.assertTrue(student.check_password("Student123!"))
+        self.assertSetEqual(set(admin.groups.values_list("name", flat=True)), {GroupName.SUPER_ADMIN, GroupName.ADMIN})
+        self.assertSetEqual(set(manager.groups.values_list("name", flat=True)), {GroupName.CONTENT_MANAGER})
+        self.assertSetEqual(set(student.groups.values_list("name", flat=True)), {GroupName.STUDENT})
+        self.assertTrue(admin.is_superuser)
+        self.assertFalse(manager.is_superuser)
+        self.assertFalse(student.is_staff)
+        self.assertEqual(
+            Enrollment.objects.filter(student=student, status=Enrollment.Status.ACTIVE).count(),
+            1,
+        )
+
+    def test_content_publisher_attaches_role_owned_data_driven_lessons(self):
+        output = StringIO()
+        call_command("setup_groups", stdout=output)
+        call_command("seed_workshop", stdout=output)
+        with tempfile.TemporaryDirectory() as temporary, self.settings(MEDIA_ROOT=temporary):
+            lpp_video = Path(temporary, "LPP2.mp4")
+            multivariable_video = Path(temporary, "Multivariable.mp4")
+            lpp_video.write_bytes(b"lpp-video")
+            multivariable_video.write_bytes(b"multivariable-video")
+            call_command(
+                "publish_learning_demo",
+                lpp_video=lpp_video,
+                multivariable_video=multivariable_video,
+                stdout=output,
+            )
+            call_command(
+                "publish_learning_demo",
+                lpp_video=lpp_video,
+                multivariable_video=multivariable_video,
+                stdout=output,
+            )
+
+            student = User.objects.get(email="student@example.com")
+            manager = User.objects.get(email="content@example.com")
+            courses = Course.objects.filter(student_enrollments__student=student, student_enrollments__status=Enrollment.Status.ACTIVE)
+            self.assertSetEqual(set(courses.values_list("name", flat=True)), {
+                "Business Mathematics for Management Students",
+                "AI for Business Management",
+            })
+            lpp = LearningActivity.objects.get(title="Workshop: Build and optimise the LPP model")
+            self.assertEqual(lpp.experiment.configuration["renderer_config"]["workspace"]["type"], "linear_programming")
+            self.assertFalse(lpp.experiment.configuration["renderer_config"].get("material_id"))
+            multivariable = LearningActivity.objects.get(title="Workshop: Climb the profit hill")
+            self.assertEqual(multivariable.status, "PUBLISHED")
+            self.assertTrue(multivariable.is_required)
+            self.assertEqual(
+                multivariable.experiment.configuration["renderer_config"]["workspace"]["type"],
+                "multivariable_profit",
+            )
+            self.assertFalse(multivariable.experiment.configuration["renderer_config"].get("material_id"))
+            self.assertEqual(
+                manager.media_assets_uploaded.filter(storage_path__startswith="demo/business-mathematics/").count(),
+                2,
+            )

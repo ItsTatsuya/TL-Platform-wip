@@ -11,7 +11,7 @@ from .models import CaseStudy, CaseStudyQuestion, LearningCheck, LearningCheckQu
 from .serializers import (
     AssessmentAttemptSerializer, CaseStudyQuestionSerializer, CaseStudySerializer,
     LearningCheckQuestionSerializer, LearningCheckSerializer, QuestionOptionSerializer,
-    QuestionSerializer, SubmitAttemptSerializer,
+    QuestionSerializer, StudentLearningCheckSerializer, SubmitAttemptSerializer,
 )
 from .services import AssessmentService
 
@@ -44,6 +44,16 @@ class LearningCheckViewSet(viewsets.ModelViewSet):
     queryset = LearningCheck.objects.prefetch_related("questions__question__options").all()
     serializer_class = LearningCheckSerializer
     permission_classes = [AssessmentPermission]
+
+    def get_serializer_class(self):
+        request_user = getattr(self.request, "user", None)
+        if (
+            request_user
+            and request_user.groups.filter(name=GroupName.STUDENT).exists()
+            and not request_user.is_superuser
+        ):
+            return StudentLearningCheckSerializer
+        return super().get_serializer_class()
 
     def get_queryset(self):
         queryset = super().get_queryset()

@@ -1,12 +1,15 @@
 from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
+from django.core.files.storage import default_storage
 from django.utils.text import slugify
 
 from assessments.models import LearningCheck, Question
+from content.experiment_definitions import ExperimentDefinitionError, validate_experiment_configuration
 from content.models import ActivityContent, Experiment, PracticeSet, Video
 from curriculum.models import Chapter, Course, CourseVersion, LearningActivity, Program, Subtopic
 from media_library.models import MediaAsset
+from media_library.services import store_media_upload
 from students.models import Enrollment, StudentGroup
 
 User = get_user_model()
@@ -127,6 +130,13 @@ class ExperimentForm(forms.ModelForm):
         model = Experiment
         fields = ("activity", "experiment_type", "instructions", "configuration", "external_url")
 
+    def clean_configuration(self):
+        configuration = self.cleaned_data["configuration"]
+        try:
+            return validate_experiment_configuration(configuration)
+        except ExperimentDefinitionError as exc:
+            raise forms.ValidationError(str(exc)) from exc
+
 
 class PracticeSetForm(forms.ModelForm):
     class Meta:
@@ -135,9 +145,41 @@ class PracticeSetForm(forms.ModelForm):
 
 
 class MediaAssetForm(forms.ModelForm):
+    upload = forms.FileField(
+        required=False,
+        help_text="Upload a local file. Its name, type, size, storage path, and ready status are filled automatically.",
+    )
+
     class Meta:
         model = MediaAsset
         fields = ("file_name", "file_type", "mime_type", "file_size", "storage_path", "cdn_url", "duration_seconds", "status")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance._state.adding:
+            for field in ("file_name", "file_type", "mime_type", "file_size", "storage_path", "status"):
+                self.fields[field].required = False
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.instance._state.adding and not cleaned.get("upload") and not cleaned.get("storage_path"):
+            self.add_error("upload", "Upload a file or provide complete storage metadata.")
+        return cleaned
+
+    def save(self, commit=True):
+        upload = self.cleaned_data.get("upload")
+        stored_path = None
+        if upload:
+            uploaded = store_media_upload(upload)
+            stored_path = uploaded["storage_path"]
+            for field, value in uploaded.items():
+                setattr(self.instance, field, value)
+        try:
+            return super().save(commit=commit)
+        except Exception:
+            if stored_path:
+                default_storage.delete(stored_path)
+            raise
 
 
 class StudentGroupForm(forms.ModelForm):

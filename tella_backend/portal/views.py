@@ -31,7 +31,7 @@ def portal_permission(permission):
         def wrapped(request, *args, **kwargs):
             if not request.user.is_authenticated:
                 return redirect_to_login(request.get_full_path(), "/admin/login/")
-            if not request.user.has_perm(permission):
+            if permission and not request.user.has_perm(permission):
                 raise PermissionDenied
             return view(request, *args, **kwargs)
         return wrapped
@@ -51,11 +51,13 @@ def _crud(model, form_class, permission, title, resource, request, pk=None):
         raise PermissionDenied
     instance = get_object_or_404(model, pk=pk) if pk else None
     if request.method == "POST":
-        form = form_class(request.POST, instance=instance)
+        form = form_class(request.POST, request.FILES, instance=instance)
         if form.is_valid():
             obj = form.save(commit=False)
             if hasattr(obj, "created_by") and not obj.created_by_id:
                 obj.created_by = request.user
+            if hasattr(obj, "uploaded_by") and not obj.uploaded_by_id:
+                obj.uploaded_by = request.user
             if hasattr(obj, "updated_by"):
                 obj.updated_by = request.user
             obj.save()
@@ -85,7 +87,7 @@ RESOURCES = {
 }
 
 
-@portal_permission("accounts.view_user")
+@portal_permission(None)
 def resource_list(request, resource):
     if resource not in RESOURCES:
         raise PermissionDenied
@@ -98,7 +100,7 @@ def resource_list(request, resource):
     return render(request, "admin_portal/object_list.html", {"title": title, "resource": resource, "rows": rows, "fields": fields})
 
 
-@portal_permission("accounts.view_user")
+@portal_permission(None)
 def resource_create(request, resource):
     if resource not in RESOURCES:
         raise PermissionDenied
@@ -106,7 +108,7 @@ def resource_create(request, resource):
     return _crud(model, form_class, permission, title, resource, request)
 
 
-@portal_permission("accounts.view_user")
+@portal_permission(None)
 def resource_edit(request, resource, pk):
     if resource not in RESOURCES:
         raise PermissionDenied
@@ -114,7 +116,7 @@ def resource_edit(request, resource, pk):
     return _crud(model, form_class, permission.replace("add_", "change_"), title, resource, request, pk=pk)
 
 
-@portal_permission("accounts.view_user")
+@portal_permission("curriculum.view_learningactivity")
 def activity_detail(request, pk):
     if not request.user.has_perm("curriculum.view_learningactivity"):
         raise PermissionDenied

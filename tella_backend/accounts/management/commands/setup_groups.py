@@ -114,7 +114,7 @@ class Command(BaseCommand):
             resolved = [permission_map[key] for key in requested if key in permission_map]
             missing[name].extend(sorted(requested - permission_map.keys()))
             group.permissions.set(resolved)
-            self.stdout.write(self.style.SUCCESS(f"✓ {name}"))
+            self.stdout.write(self.style.SUCCESS(f"[OK] {name}"))
             self.stdout.write(f"  {len(resolved)} permissions")
         for name, keys in missing.items():
             if keys:
