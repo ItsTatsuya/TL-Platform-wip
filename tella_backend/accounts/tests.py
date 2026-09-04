@@ -2,7 +2,8 @@ import tempfile
 from io import StringIO
 from pathlib import Path
 
-from django.contrib.auth.models import Group, Permission
+from django.contrib.auth.models import Group
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import PermissionDenied
 from django.core.management import call_command
 from django.test import TestCase
@@ -13,6 +14,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .constants import GroupName
 from .models import User
+from .permissions import active_permission_queryset
 from .services import assign_group
 from curriculum.models import Course, LearningActivity
 from students.models import Enrollment
@@ -74,6 +76,7 @@ class AuthenticationApiTests(TestCase):
         self.assertEqual(response.data["email"], self.user.email)
         self.assertIn(GroupName.STUDENT, response.data["groups"])
         self.assertIn("accounts.view_user", response.data["permissions"])
+        self.assertFalse(response.data["is_superuser"])
 
 
 class GroupPermissionTests(TestCase):
@@ -87,7 +90,7 @@ class GroupPermissionTests(TestCase):
 
     def test_super_admin_receives_all_permissions(self):
         group = Group.objects.get(name=GroupName.SUPER_ADMIN)
-        self.assertEqual(group.permissions.count(), Permission.objects.count())
+        self.assertEqual(group.permissions.count(), active_permission_queryset().count())
 
     def test_admin_cannot_manage_permissions(self):
         admin = User.objects.create_user(email="admin@example.com", username="admin", password="pass")
@@ -173,3 +176,153 @@ class DemoSeedCommandTests(TestCase):
                 manager.media_assets_uploaded.filter(storage_path__startswith="demo/business-mathematics/").count(),
                 2,
             )
+
+
+class StaffManagementApiTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        call_command("setup_groups", verbosity=0)
+        cls.admin = User.objects.create_user(
+            email="staff-admin@example.com",
+            username="staff-admin",
+            password="StrongPass123!",
+        )
+        cls.admin.groups.add(Group.objects.get(name=GroupName.ADMIN))
+        cls.content_manager = User.objects.create_user(
+            email="staff-content@example.com",
+            username="staff-content",
+            password="StrongPass123!",
+        )
+        cls.content_manager.groups.add(Group.objects.get(name=GroupName.CONTENT_MANAGER))
+        cls.super_admin = User.objects.create_superuser(
+            email="staff-super@example.com",
+            username="staff-super",
+            password="StrongPass123!",
+        )
+        cls.super_admin.groups.add(Group.objects.get(name=GroupName.SUPER_ADMIN))
+
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_admin_can_create_and_update_a_role_scoped_user(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(
+            reverse("accounts:managed-user-list"),
+            {
+                "email": "new-student@example.com",
+                "username": "new-student",
+                "first_name": "New",
+                "last_name": "Student",
+                "password": "UniquePass834!",
+                "groups": [GroupName.STUDENT],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        user = User.objects.get(email="new-student@example.com")
+        self.assertTrue(user.check_password("UniquePass834!"))
+        self.assertSetEqual(set(user.groups.values_list("name", flat=True)), {GroupName.STUDENT})
+
+        response = self.client.patch(
+            reverse("accounts:managed-user-detail", args=[user.pk]),
+            {"is_active": False, "first_name": "Updated"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        user.refresh_from_db()
+        self.assertFalse(user.is_active)
+        self.assertEqual(user.first_name, "Updated")
+
+    def test_content_manager_cannot_access_user_management(self):
+        self.client.force_authenticate(self.content_manager)
+
+        response = self.client.get(reverse("accounts:managed-user-list"))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_cannot_change_super_admin_membership(self):
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.post(
+            reverse("accounts:managed-user-list"),
+            {
+                "email": "blocked-super@example.com",
+                "username": "blocked-super",
+                "password": "UniquePass834!",
+                "groups": [GroupName.SUPER_ADMIN],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(User.objects.filter(email="blocked-super@example.com").exists())
+
+    def test_admin_cannot_update_super_admin_account(self):
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.patch(
+            reverse("accounts:managed-user-detail", args=[self.super_admin.id]),
+            {"is_active": False},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.super_admin.refresh_from_db()
+        self.assertTrue(self.super_admin.is_active)
+
+    def test_super_admin_can_update_role_permissions(self):
+        self.client.force_authenticate(self.super_admin)
+        role = Group.objects.get(name=GroupName.CONTENT_MANAGER)
+
+        response = self.client.patch(
+            reverse("accounts:role-set-permissions", args=[role.pk]),
+            {"permissions": ["content.view_video", "media_library.view_mediaasset"]},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertSetEqual(
+            set(role.permissions.values_list("content_type__app_label", "codename")),
+            {("content", "view_video"), ("media_library", "view_mediaasset")},
+        )
+
+    def test_permission_catalog_requires_permission_management(self):
+        self.client.force_authenticate(self.admin)
+        self.assertEqual(reverse("accounts:permission-catalog"), "/api/v1/auth/permissions/")
+        self.assertEqual(self.client.get(reverse("accounts:permission-catalog")).status_code, 403)
+
+        self.client.force_authenticate(self.super_admin)
+        response = self.client.get(reverse("accounts:permission-catalog"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(any(item["key"] == "accounts.manage_users" for item in response.data))
+
+    def test_removed_django_app_permissions_are_hidden(self):
+        stale_content_type, _ = ContentType.objects.get_or_create(
+            app_label="admin", model="logentry"
+        )
+        stale_content_type.permission_set.get_or_create(
+            codename="view_logentry", defaults={"name": "Can view log entry"}
+        )
+        self.client.force_authenticate(self.super_admin)
+
+        me_response = self.client.get(reverse("accounts:me"))
+        catalog_response = self.client.get(reverse("accounts:permission-catalog"))
+
+        self.assertEqual(me_response.status_code, 200)
+        self.assertNotIn("admin.view_logentry", me_response.data["permissions"])
+        self.assertFalse(
+            any(item["key"] == "admin.view_logentry" for item in catalog_response.data)
+        )
+
+    def test_staff_summary_returns_only_authorized_live_totals(self):
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.get(reverse("accounts:staff-summary"))
+
+        self.assertEqual(response.status_code, 200)
+        keys = {record["key"] for record in response.data["records"]}
+        self.assertTrue(
+            {"programs", "courses", "students", "enrollments", "course-progress"}
+            <= keys
+        )

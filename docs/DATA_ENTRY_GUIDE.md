@@ -1,6 +1,6 @@
 # Tella Data Entry and Creation Guide
 
-This guide explains how an administrator creates platform data in the correct dependency order. Use the Django management portal for common authoring tasks, or the versioned REST API for imports and integrations.
+This guide explains how an administrator creates platform data in the correct dependency order. Use the permission-aware Next.js staff workspace for day-to-day administration, or the versioned REST API for imports and integrations.
 
 ## 1. Prepare the environment
 
@@ -13,7 +13,7 @@ python manage.py createsuperuser
 python manage.py runserver 0.0.0.0:8000
 ```
 
-Open `http://127.0.0.1:8000/manage/` and sign in through Django. The portal requires a staff user with the relevant Django permission. Use `/admin/` only for low-level Django administration; `/manage/` is the product portal.
+Start the Next.js application and sign in at `http://localhost:3000/login`. A Django superuser may sign in without an additional group assignment. Django exposes only the JSON backend at `/api/v1/`; all staff web workflows live in Next.js.
 
 For API entry, obtain a token first:
 
@@ -39,7 +39,7 @@ Every reference to `<uuid>` below must be replaced with an ID returned by an ear
 
 ## 2. Create users and access roles
 
-Create users through `/admin/` or an authorized user-management workflow, then run `setup_groups` after migrations. Assign one or more Django Groups:
+Create users through an authorized provisioning workflow, then run `setup_groups` after migrations. Assign one or more Django Groups:
 
 ```text
 SUPER_ADMIN
@@ -50,7 +50,7 @@ TEACHER
 STUDENT
 ```
 
-The portal path `/manage/access/users/` searches users and `/manage/access/users/{user_id}/` adds/removes groups. An `ADMIN` cannot grant `SUPER_ADMIN` or change critical permissions. Permission administrators use `/manage/access/groups/`.
+Next.js: `/access`. Authorized administrators can create or edit accounts and assign ordinary roles. Only permission administrators can grant `SUPER_ADMIN` or edit role permissions; ordinary `ADMIN` accounts cannot edit protected accounts.
 
 Students and teachers must belong to the corresponding Django Group before they are used in enrollments or StudentGroups.
 
@@ -69,7 +69,7 @@ Program
 
 ### 3.1 Program
 
-Portal: `/manage/programs/new/`
+Next.js: `/manage/programs` (also linked from `/courses`).
 
 API: `POST /api/v1/programs/`
 
@@ -87,7 +87,7 @@ API: `POST /api/v1/programs/`
 
 ### 3.2 Course
 
-Portal: `/manage/courses/new/`
+Next.js: `/courses`
 
 API: `POST /api/v1/courses/`
 
@@ -106,6 +106,8 @@ The program must already exist. `code` is globally unique.
 
 ### 3.3 Course version
 
+Next.js: open a course from `/courses` and add a version in its structure editor.
+
 API: `POST /api/v1/course-versions/`
 
 ```json
@@ -120,6 +122,8 @@ API: `POST /api/v1/course-versions/`
 The `(course, version_number)` pair is unique. Enrollments always point to a specific version; publish new versions instead of rewriting historical progress.
 
 ### 3.4 Chapter, subtopic, activity
+
+Next.js: open a course from `/courses`. The editor exposes create, edit, and ordering controls only when the signed-in role has the corresponding Django permission.
 
 Chapter: `POST /api/v1/chapters/`
 
@@ -168,6 +172,8 @@ Each body is `{"ids":["<first-uuid>","<second-uuid>"]}` and must contain every c
 
 ## 4. Add content and media
 
+Next.js: use `/content` for content records and `/media` for uploaded assets.
+
 Create a `MediaAsset` first when content references a file:
 
 `POST /api/v1/media-assets/`
@@ -187,8 +193,6 @@ curl -X POST http://127.0.0.1:8000/api/v1/media-assets/ \
   -H "Authorization: Bearer $TOKEN" \
   -F "upload=@equations.mp4" -F "duration_seconds=180"
 ```
-
-The same upload field is available at `/manage/media-assets/new/` for authorized content managers.
 
 Then create the structured content:
 
@@ -312,6 +316,8 @@ The experience is online-required: Moodle must exchange a valid learner token an
 
 ## 5. Create questions and assessments
 
+Next.js: `/assessments`.
+
 ### 5.1 Question bank
 
 `POST /api/v1/questions/`
@@ -348,7 +354,7 @@ Create a check for a chapter:
 }
 ```
 
-Link questions using `POST /api/v1/learning-check-questions/` through the model/admin workflow. Publish the check only after its questions are complete. Students can then start, submit, and view their own results through `/learning-checks/{id}/start/`, `/submit/`, and `/results/`.
+Link questions in the Learning-check questions workspace or with `POST /api/v1/learning-check-questions/`. Publish the check only after its questions are complete. Students can then start, submit, and view their own results through `/learning-checks/{id}/start/`, `/submit/`, and `/results/`.
 
 Case studies follow the same pattern with `/case-studies/` and `/case-study-questions/`.
 
@@ -370,6 +376,8 @@ curl -X POST "http://127.0.0.1:8000/api/v1/courses/<course-uuid>/publish/" \
 The service requires a published parent Program and at least one Chapter, then marks the selected version and parent Course published. Students cannot see drafts.
 
 ## 7. Create cohorts, assignments, and enrollments
+
+Next.js: `/learners`.
 
 Create a StudentGroup (not a Django Group):
 

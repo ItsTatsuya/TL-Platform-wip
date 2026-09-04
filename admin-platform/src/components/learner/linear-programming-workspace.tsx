@@ -3,7 +3,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Calculator, CheckCircle2, CircleAlert, Expand, Minimize2, RotateCcw } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
@@ -268,7 +267,7 @@ function Controls({ workspace, model, change }: { workspace: LinearProgrammingWo
                 <Field key={variable.id}>
                   <div className="flex items-center justify-between gap-3">
                     <FieldLabel htmlFor={`parameter-${variable.id}`}>{variable.label} ({variable.symbol})</FieldLabel>
-                    <Badge variant="secondary">{formatLpNumber(value)} {variable.unit}</Badge>
+                    <span className="text-xs tabular-nums text-muted-foreground">{formatLpNumber(value)} {variable.unit}</span>
                   </div>
                   <Slider
                     id={`parameter-${variable.id}`}
@@ -310,7 +309,7 @@ function Controls({ workspace, model, change }: { workspace: LinearProgrammingWo
         <FieldGroup>
           {workspace.constraints.map((constraint) => (
             <Card key={constraint.id} size="sm">
-              <CardHeader><CardTitle>{constraint.label}</CardTitle><CardAction><Badge variant="outline">{constraint.operator === "<=" ? "At most" : "At least"}</Badge></CardAction></CardHeader>
+              <CardHeader><CardTitle>{constraint.label}</CardTitle><CardAction><span className="text-xs text-muted-foreground">{constraint.operator === "<=" ? "At most" : "At least"}</span></CardAction></CardHeader>
               <CardContent>
                 <FieldGroup className="grid sm:grid-cols-4">
                   {workspace.variables.map((variable) => (
@@ -374,7 +373,7 @@ function Results({ workspace, solution }: { workspace: LinearProgrammingWorkspac
   return (
     <div className="flex flex-col gap-4">
       <Card size="sm">
-        <CardHeader><CardTitle>Feasible region and vertices</CardTitle><CardAction><Badge variant="secondary">Area {formatLpNumber(solution.area)} sq units</Badge></CardAction></CardHeader>
+        <CardHeader><CardTitle>Feasible region and vertices</CardTitle><CardAction><span className="text-xs tabular-nums text-muted-foreground">Area {formatLpNumber(solution.area)} sq units</span></CardAction></CardHeader>
         <CardContent>
           <Table>
             <TableHeader><TableRow><TableHead>Vertex</TableHead><TableHead>Coordinates</TableHead><TableHead className="text-right">Z value</TableHead></TableRow></TableHeader>
@@ -482,7 +481,7 @@ export function LinearProgrammingWorkspaceView({ workspaceDefinition, rendererCo
         isFullscreen && "sticky top-0 z-20 rounded-lg border bg-background/95 p-3 shadow-sm backdrop-blur",
       )}>
         <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2"><Badge variant="outline">GeoGebra workspace</Badge><Badge variant="secondary">2D slice</Badge></div>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground"><span>GeoGebra workspace</span><span>2D slice</span></div>
           <p className="text-sm text-muted-foreground">All problem data came from the published experiment record.</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -502,8 +501,8 @@ export function LinearProgrammingWorkspaceView({ workspaceDefinition, rendererCo
             <CardDescription>{workspace.variables.find((variable) => variable.id === workspace.axisVariables[0])?.label} against {workspace.variables.find((variable) => variable.id === workspace.axisVariables[1])?.label}</CardDescription>
             {solution.ok && solution.best && (
               <CardAction className="flex flex-wrap gap-2">
-                <Badge variant="outline">Area {formatLpNumber(solution.area)}</Badge>
-                <Badge variant="secondary">{workspace.objective.label} {formatLpMoney(solution.best.objectiveValue, workspace.objective.currency)}</Badge>
+                <span className="text-xs tabular-nums text-muted-foreground">Area {formatLpNumber(solution.area)}</span>
+                <span className="text-xs tabular-nums text-muted-foreground">{workspace.objective.label} {formatLpMoney(solution.best.objectiveValue, workspace.objective.currency)}</span>
               </CardAction>
             )}
           </CardHeader>

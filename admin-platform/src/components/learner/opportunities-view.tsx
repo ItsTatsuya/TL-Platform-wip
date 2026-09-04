@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ArrowUpRight, BriefcaseBusiness, Building2, GraduationCap, MapPin } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { learnerApi, LearnerApiError } from "@/lib/learner/api";
@@ -33,7 +32,11 @@ export function OpportunitiesView() {
         eyebrow="Beyond the curriculum"
         title="Opportunities"
         description="Internships, projects, and further-learning opportunities published by your institution."
-        action={<Badge variant="outline"><span className="tabular-nums">{items.length}</span> available</Badge>}
+        action={
+          <span className="text-sm text-muted-foreground">
+            <span className="tabular-nums">{items.length}</span> available
+          </span>
+        }
       />
       {items.length ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -42,7 +45,9 @@ export function OpportunitiesView() {
             return (
               <Card key={item.id}>
                 <CardHeader>
-                  <Badge variant="secondary" className="mb-2">{item.kind}</Badge>
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">
+                    {item.kind}
+                  </p>
                   <CardTitle>{item.title}</CardTitle>
                   {item.summary && <CardDescription className="line-clamp-4 leading-6">{item.summary}</CardDescription>}
                   <CardAction><Icon className="size-5 text-muted-foreground" aria-hidden="true" /></CardAction>

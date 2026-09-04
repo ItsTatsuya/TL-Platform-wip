@@ -104,3 +104,35 @@ class AssessmentAnswerSerializer(serializers.ModelSerializer):
     class Meta:
         model = AssessmentAnswer
         fields = "__all__"
+
+
+class StaffAssessmentAttemptSerializer(serializers.ModelSerializer):
+    student_email = serializers.EmailField(source="student.email", read_only=True)
+    learning_check_title = serializers.CharField(
+        source="learning_check.title", read_only=True
+    )
+
+    class Meta:
+        model = AssessmentAttempt
+        fields = tuple(field.name for field in AssessmentAttempt._meta.fields) + (
+            "student_email",
+            "learning_check_title",
+        )
+        read_only_fields = fields
+
+
+class StaffAssessmentAnswerSerializer(serializers.ModelSerializer):
+    student_email = serializers.EmailField(
+        source="attempt.student.email", read_only=True
+    )
+    question_text = serializers.CharField(
+        source="question.question_text", read_only=True
+    )
+
+    class Meta:
+        model = AssessmentAnswer
+        fields = tuple(field.name for field in AssessmentAnswer._meta.fields) + (
+            "student_email",
+            "question_text",
+        )
+        read_only_fields = fields

@@ -48,7 +48,10 @@ function scene(): ProfitScene {
 
 function fakeApi() {
   return {
-    evalCommand: vi.fn((_command: string) => true),
+    evalCommand: vi.fn((command: string) => {
+      void command;
+      return true;
+    }),
     getValue: vi.fn(() => 0),
     getValueString: vi.fn(() => ""),
     reset: vi.fn(),

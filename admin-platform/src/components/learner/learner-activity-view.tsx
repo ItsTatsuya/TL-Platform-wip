@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, ChevronDown, Cloud, CloudOff, Clock3, ListTree, Save } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -35,10 +34,15 @@ function ConnectionStatus() {
     return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); };
   }, []);
   return (
-    <Badge variant="outline" className={online ? "text-success" : "text-destructive"}>
-      {online ? <Cloud /> : <CloudOff />}
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 text-xs font-medium",
+        online ? "text-success" : "text-destructive",
+      )}
+    >
+      {online ? <Cloud className="size-3.5" /> : <CloudOff className="size-3.5" />}
       {online ? "Progress sync online" : "Reconnect to save"}
-    </Badge>
+    </span>
   );
 }
 

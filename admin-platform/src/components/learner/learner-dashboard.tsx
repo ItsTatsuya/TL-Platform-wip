@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Award, BookOpen, BriefcaseBusiness, CheckCircle2, Clock3 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -91,10 +90,10 @@ export function LearnerDashboard() {
         title="Pick up where you left off."
         description="Your assigned courses, progress, and next activity are kept together here."
         action={
-          <Badge variant="outline" className="h-7">
-            <CheckCircle2 />
+          <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+            <CheckCircle2 className="size-4" aria-hidden="true" />
             <span className="tabular-nums">{completed}</span> completed
-          </Badge>
+          </span>
         }
       />
 
@@ -105,7 +104,10 @@ export function LearnerDashboard() {
           <section className="grid gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(280px,.75fr)]" aria-label="Continue learning">
             <Card>
               <CardHeader>
-                <Badge variant="secondary" className="mb-2"><BookOpen />Continue learning</Badge>
+                <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-primary">
+                  <BookOpen className="size-4" aria-hidden="true" />
+                  Continue learning
+                </p>
                 {continueTarget ? (
                   <>
                     <CardTitle className="max-w-3xl text-2xl sm:text-3xl">{continueTarget.activity.title}</CardTitle>

@@ -11,7 +11,6 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -129,10 +128,10 @@ export function activityIcon(activity: Activity, className = "") {
 
 export function ActivityPill({ activity }: { activity: Activity }) {
   return (
-    <Badge variant="secondary">
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
       {activityIcon(activity, "size-3")}
       {activityLabel(activity.activity_type)}
-    </Badge>
+    </span>
   );
 }
 

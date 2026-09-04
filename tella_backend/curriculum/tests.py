@@ -124,6 +124,26 @@ class CurriculumApiTests(CurriculumFixtureMixin, TestCase):
         response = self.client.post(reverse("course-publish", args=[self.course.id]), {"version_id": str(self.version.id)}, format="json")
         self.assertEqual(response.status_code, 403)
 
+    def test_content_manager_can_reorder_activities_api(self):
+        second = LearningActivity.objects.create(
+            subtopic=self.subtopic,
+            activity_type=LearningActivity.ActivityType.HOMEWORK,
+            title="Homework",
+            display_order=1,
+        )
+        self.client.force_authenticate(self.content_manager)
+
+        response = self.client.post(
+            reverse("subtopic-reorder-activities", args=[self.subtopic.id]),
+            {"ids": [str(second.id), str(self.activity.id)]},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 204)
+        self.activity.refresh_from_db()
+        second.refresh_from_db()
+        self.assertEqual((second.display_order, self.activity.display_order), (0, 1))
+
     def test_activity_representation_includes_nullable_content_record(self):
         self.client.force_authenticate(self.academic)
         response = self.client.get(reverse("activity-detail", args=[self.activity.id]))

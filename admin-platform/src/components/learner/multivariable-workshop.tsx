@@ -20,7 +20,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -65,7 +64,6 @@ import {
   serializeMultivariableState,
   workshopProgress,
   type MultivariableProfitWorkspace,
-  type MultivariableStageKind,
   type MultivariableWorkshopState,
   type ProfitModel,
 } from "@/lib/experiments/multivariable-profit";
@@ -281,7 +279,7 @@ function QuantityControls({
             <Field key={product.id}>
               <div className="flex items-center justify-between gap-3">
                 <FieldLabel htmlFor={`profit-quantity-${product.id}`}>{product.label}</FieldLabel>
-                <Badge variant="secondary">{formatProfitNumber(workshopState.quantities[index], 0)}</Badge>
+                <span className="text-xs tabular-nums text-muted-foreground">{formatProfitNumber(workshopState.quantities[index], 0)}</span>
               </div>
               <Slider
                 id={`profit-quantity-${product.id}`}
@@ -604,9 +602,9 @@ export function MultivariableWorkshopView({
       )}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-col gap-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">Generated GeoGebra</Badge>
-              <Badge variant="secondary">Admin-authored lesson</Badge>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              <span>Generated GeoGebra</span>
+              <span>Admin-authored lesson</span>
             </div>
             <h2 className="text-xl font-semibold tracking-tight">{activeWorkspace.title}</h2>
             <p className="max-w-4xl text-sm leading-6 text-muted-foreground">{activeWorkspace.scenario}</p>
@@ -648,7 +646,7 @@ export function MultivariableWorkshopView({
         <CardHeader>
           <CardTitle>{stage.title}</CardTitle>
           <CardDescription className="max-w-4xl leading-6">{stage.instruction}</CardDescription>
-          <CardAction><Badge variant="outline">Step {activeStageIndex + 1} of 5</Badge></CardAction>
+          <CardAction><span className="text-xs tabular-nums text-muted-foreground">Step {activeStageIndex + 1} of 5</span></CardAction>
         </CardHeader>
       </Card>
 

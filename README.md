@@ -1,16 +1,16 @@
 # Tella Learning Platform
 
-Django backend, Next.js administration and student frontends, and Moodle plugin source for university skill-enhancement experiments. Lesson definitions are authored centrally and delivered at runtime; the installed clients contain generic renderers and solvers, not lesson-specific datasets, coefficients, wording, or material IDs.
+Django API backend, a unified Next.js web frontend for staff and students, and Moodle plugin source for university skill-enhancement experiments. Lesson definitions are authored centrally and delivered at runtime; the installed clients contain generic renderers and solvers, not lesson-specific datasets, coefficients, wording, or material IDs.
 
 ## What runs from this checkout
 
-- Django API and management portal at `http://127.0.0.1:8000`
-- Next.js curriculum editor at `http://localhost:3000/login`
-- Next.js student learning frontend at `http://localhost:3000/learn/login`
+- Django API at `http://127.0.0.1:8000/api/v1/`
+- Next.js staff frontend at `http://localhost:3000/login`
+- Next.js student frontend at `http://localhost:3000/learn/login`
 - PostgreSQL database `tella_dev`
 - Moodle plugin source under `moodle/local/tella_workshop/`
 
-A Moodle clone and PHP runtime are not bundled or required for backend/admin frontend work. Test the student-facing plugin later in an existing Moodle installation by copying only `moodle/local/tella_workshop/` into its `local/` directory.
+A Moodle clone and PHP runtime are not bundled or required for backend/frontend work. Test the student-facing plugin later in an existing Moodle installation by copying only `moodle/local/tella_workshop/` into its `local/` directory.
 
 ## One-command Windows setup
 
@@ -40,7 +40,7 @@ cd tella_backend
 ..\venv\Scripts\python.exe manage.py runserver 0.0.0.0:8000
 ```
 
-PostgreSQL must be running with the credentials configured in `tella_backend/.env`. Open `http://127.0.0.1:8000/manage/` for the Django management portal or `/admin/` for low-level administration.
+PostgreSQL must be running with the credentials configured in `tella_backend/.env`. Django is API-only and serves no HTML administration routes; use the Next.js application for every web workflow.
 
 ## Web frontend
 
@@ -54,7 +54,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000/login` for staff curriculum administration. Students use `http://localhost:3000/learn/login`; in Moodle deployments, the signed exchange can create the same learner session without a second password prompt.
+Open `http://localhost:3000/login` for the permission-aware staff dashboard covering curriculum, content, media, learners, assessments, access control, and operational reports. Students use `http://localhost:3000/learn/login`; in Moodle deployments, the signed exchange can create the same learner session without a second password prompt.
 
 For a one-click local frontend launch, run this from the repository root:
 
@@ -108,6 +108,6 @@ SSO secret (Moodle plugin setting and Django `MOODLE_SSO_SECRET`) defaults to `t
 
 See `docs/` for API notes, experiment authoring, Moodle installation, and known limitations.
 
-## Admin curriculum workspace
+## Staff workspace
 
-The Next.js administration app lives in `admin-platform/`. See `admin-platform/README.md` for setup and supported scope.
+The unified Next.js staff app lives in `admin-platform/`. See `admin-platform/README.md` for setup and the role-specific workspace scope.

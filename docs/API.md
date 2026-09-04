@@ -4,7 +4,7 @@ Version: `v1` · Base URL: `http://127.0.0.1:8000/api/v1/`
 
 Django is the source of truth. Moodle and other clients consume this API and must not implement authorization, enrollment, progress, or scoring rules locally.
 
-For step-by-step data creation with portal/API examples, see [DATA_ENTRY_GUIDE.md](DATA_ENTRY_GUIDE.md).
+For step-by-step data creation with Next.js/API examples, see [DATA_ENTRY_GUIDE.md](DATA_ENTRY_GUIDE.md).
 
 ## Conventions
 
@@ -41,8 +41,23 @@ Returns `access` and `refresh`. Access tokens default to 15 minutes; refresh tok
 `GET /auth/me/` (Bearer token required)
 
 ```json
-{"id":"<uuid>","email":"teacher@example.com","username":"teacher","first_name":"Ada","last_name":"Lovelace","display_name":"Ada Lovelace","is_active":true,"date_joined":"2026-08-28T10:00:00Z","groups":["TEACHER"],"permissions":["accounts.view_user"]}
+{"id":"<uuid>","email":"teacher@example.com","username":"teacher","first_name":"Ada","last_name":"Lovelace","display_name":"Ada Lovelace","is_active":true,"is_superuser":false,"date_joined":"2026-08-28T10:00:00Z","groups":["TEACHER"],"permissions":["accounts.view_user"]}
 ```
+
+### Staff account and role management
+
+Authorized staff use these endpoints:
+
+| Operation | Route | Required authority |
+| --- | --- | --- |
+| List/create accounts | `GET`/`POST /auth/users/` | `accounts.manage_users`; creation also requires `accounts.add_user` |
+| Read/update account | `GET`/`PATCH /auth/users/{id}/` | `accounts.manage_users`; updates also require `accounts.change_user` |
+| List roles | `GET /auth/groups/` | `accounts.manage_users` |
+| Replace role permissions | `PATCH /auth/groups/{id}/permissions/` | `accounts.manage_permissions` |
+| Permission catalog | `GET /auth/permissions/` | `accounts.manage_permissions` |
+| Staff dashboard totals | `GET /auth/staff-summary/` | Authenticated; response is filtered by effective permissions |
+
+User writes accept `email`, `username`, names, optional `is_active`, role names in `groups`, and a password (required on create and optional on update). Password validation uses Django’s configured validators. Only permission administrators may assign `SUPER_ADMIN` or update an account that already holds that protected role.
 
 ### Moodle exchange
 
@@ -125,7 +140,7 @@ Percentages must be 0–100. Writes require an active, unexpired, exact-version 
 | --- | --- |
 | Question bank/options | `/questions/`, `/question-options/` |
 | Case studies/links | `/case-studies/`, `/case-study-questions/` |
-| Learning checks | `/learning-checks/`, `/learning-checks/{id}/` |
+| Learning checks/question links | `/learning-checks/`, `/learning-check-questions/` |
 | Start attempt | `POST /learning-checks/{id}/start/` |
 | Submit attempt | `POST /learning-checks/{id}/submit/` |
 | Own results | `GET /learning-checks/{id}/results/` |
@@ -138,13 +153,25 @@ Question types: `MCQ`, `MULTI_SELECT`, `TRUE_FALSE`, `NUMERIC`, `SHORT_TEXT`, `L
 
 The server verifies question membership, enrollment, ownership, publication, and `max_attempts`; calculates marks/pass-fail from canonical data; ignores client scores; and updates chapter learning-check progress. Student learning-check responses intentionally omit answer metadata, option correctness, and explanations before submission.
 
+## Staff reports and operations
+
+The Next.js staff workspace consumes these permission-checked endpoints. Read-only records are scoped to all students, an assigned cohort, or the signed-in student according to the caller's progress permissions.
+
+| Resource | Route | Supported operations |
+| --- | --- | --- |
+| Activity progress | `/activity-progress-records/` | `GET` collection/detail |
+| Assessment attempts and answers | `/assessment-attempts/`, `/assessment-answers/` | `GET` collection/detail |
+| Point events and badge awards | `/point-events/`, `/badge-awards/` | `GET` collection/detail |
+| Career opportunities | `/career-opportunities/` | Standard model-permission CRUD |
+| Legacy activity attempts | `/legacy-assessment-attempts/` | `GET` collection/detail |
+| Workshop configuration | `/workshop-configs/` | Standard model-permission CRUD |
+| Saved workshop models | `/staff-workshop-models/` | `GET` collection/detail |
+
+Writes require the corresponding standard Django model permission (`add_*`, `change_*`, or `delete_*`); reads require `view_*`. These routes are administrative APIs, not Django-rendered pages.
+
 ## Workshop compatibility
 
 `GET/POST /workshop-models/` and `GET/PUT/PATCH /workshop-models/{id}/` remain as legacy backend compatibility endpoints, but the generic Moodle experiment runner does not call them. `GET /gamification/me/`, `GET /career/opportunities/`, and public `GET /health/` also remain available.
-
-## Management portal
-
-The Django Template portal is at `/manage/`, separate from `/admin/`. Current screens cover dashboard, programs, courses, student groups, enrollments, questions, learning checks, user/group access, and permission management. Forms use CSRF protection and every view checks Django permissions server-side.
 
 ## Status codes and client rules
 

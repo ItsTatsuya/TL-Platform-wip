@@ -59,6 +59,16 @@ describe("admin session", () => {
     expect(values.size).toBe(0);
   });
 
+  it("accepts a Django superuser without requiring a role assignment", async () => {
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(Response.json({ access: "access", refresh: "refresh" }))
+      .mockResolvedValueOnce(Response.json({ groups: [], is_superuser: true })));
+    const { POST } = await import("@/app/api/auth/login/route");
+    const response = await POST(new Request("http://admin/api/auth/login", { method: "POST", body: "{}" }));
+    expect(response.status).toBe(200);
+    expect(values.get("tella_admin_access")).toBe("access");
+  });
+
   it("keeps learner tokens separate from the administration session", async () => {
     vi.stubGlobal("fetch", vi.fn()
       .mockResolvedValueOnce(Response.json({ access: "learner-access", refresh: "learner-refresh" }))

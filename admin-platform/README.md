@@ -8,7 +8,7 @@ Next.js 16 frontend for curriculum administration and the responsive student lea
 2. Set `DJANGO_API_URL=http://127.0.0.1:8000/api/v1` and keep `ADMIN_SECURE_COOKIES=false` for local HTTP only. Put them in your shell environment or an ignored `.env.local` file.
 3. Run `npm install` and `npm run dev`, then open `http://localhost:3000`.
 
-Staff sign in at `/login` with an `ADMIN`, `ACADEMIC_MANAGER`, or `CONTENT_MANAGER` account. Students sign in at `/learn/login` with a `STUDENT` account, or arrive through the signed Moodle exchange.
+Staff sign in at `/login` with a `SUPER_ADMIN`, `ADMIN`, `ACADEMIC_MANAGER`, or `CONTENT_MANAGER` account. Students sign in at `/learn/login` with a `STUDENT` account, or arrive through the signed Moodle exchange.
 
 ## Environment
 
@@ -19,17 +19,18 @@ Staff sign in at `/login` with an `ADMIN`, `ACADEMIC_MANAGER`, or `CONTENT_MANAG
 
 Production requests fail clearly when `DJANGO_API_URL` is absent. JWTs remain in HTTP-only, same-site cookies; browser code calls only the allowlisted Next.js proxy.
 
-## Administration scope
+## Staff administration scope
 
-- Session login, refresh, current user, and logout
-- Course library and draft course creation
-- Version, chapter, subtopic, and activity CRUD
-- Responsive hierarchy and inspector
-- Activity-content JSON with unknown-field preservation
-- Keyboard-accessible sibling ordering
-- Confirmed course-version publication
+- Permission-aware dashboard and navigation derived from Django’s effective permissions
+- Curriculum workspace for programs, courses, versions, chapters, subtopics, activities, ordering, and publication
+- Content workspace for activity content, videos, experiments, practice sets, and practice items
+- Media workspace with multipart upload and storage-metadata editing
+- Learner workspace for students, cohorts, memberships, enrollments, assignments, and LMS mappings
+- Assessment workspace for questions, options, case studies, learning checks, and their question links
+- Access workspace for guarded account creation/editing, role assignment, and `SUPER_ADMIN` permission management
+- Reports and operations workspace for progress, attempts, answers, awards, career opportunities, and legacy workshop records
 
-Students, cohorts, enrollments, reporting, and media uploads remain managed in the Django portal. Content managers can upload a local video at `/manage/media-assets/new/` and then attach that MediaAsset to a Video record.
+`CONTENT_MANAGER` accounts receive curriculum-content-media tools; `ADMIN` accounts additionally receive learner, assessment, account, and reporting tools; `ACADEMIC_MANAGER` accounts receive full curriculum authoring, publication, and outcome reporting. The application always uses the returned permission set rather than assuming capabilities from a role name. Django is API-only; this application is the sole web administration surface.
 
 ## Learner scope
 

@@ -617,8 +617,7 @@ try {
     Write-Host ""
     Write-Host "Setup completed." -ForegroundColor Green
     Write-Host "" 
-    Write-Host "Django admin:  http://127.0.0.1:8000/admin/"
-    Write-Host "Tella admin:   http://localhost:3000/login"
+    Write-Host "Tella staff:   http://localhost:3000/login"
     Write-Host "Tella learner: http://localhost:3000/learn/login"
     if ($PrepareMoodle) {
         Write-Host "Moodle:        http://localhost:8080"

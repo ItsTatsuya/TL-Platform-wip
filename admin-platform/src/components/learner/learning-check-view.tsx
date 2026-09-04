@@ -4,7 +4,6 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, BookOpenCheck, CheckCircle2, Clock3, RotateCcw, ShieldCheck, Trophy } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldGroup, FieldLegend, FieldSet } from "@/components/ui/field";
@@ -121,14 +120,17 @@ export function LearningCheckView({ courseId, checkId }: { courseId: string; che
         <Button asChild variant="ghost" className="self-start"><Link href={`/learn/courses/${courseId}`}><ArrowLeft data-icon="inline-start" />Back to course</Link></Button>
         <Card>
           <CardHeader>
-            <Badge variant="secondary" className="mb-2"><BookOpenCheck />Learning check</Badge>
+            <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-primary">
+              <BookOpenCheck className="size-4" aria-hidden="true" />
+              Learning check
+            </p>
             <CardTitle className="text-3xl">{check.title}</CardTitle>
             {check.instructions && <CardDescription className="max-w-2xl leading-6">{check.instructions}</CardDescription>}
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
-            <Badge variant="outline"><span className="tabular-nums">{orderedQuestions.length}</span> questions</Badge>
-            <Badge variant="outline"><span className="tabular-nums">{check.passing_score}%</span> to pass</Badge>
-            {check.time_limit_minutes && <Badge variant="outline"><Clock3 /><span className="tabular-nums">{check.time_limit_minutes}</span> minutes</Badge>}
+            <span className="text-sm text-muted-foreground"><span className="tabular-nums">{orderedQuestions.length}</span> questions</span>
+            <span className="text-sm text-muted-foreground"><span className="tabular-nums">{check.passing_score}%</span> to pass</span>
+            {check.time_limit_minutes && <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground"><Clock3 className="size-3.5" aria-hidden="true" /><span className="tabular-nums">{check.time_limit_minutes}</span> minutes</span>}
           </CardContent>
         </Card>
 
@@ -163,11 +165,11 @@ export function LearningCheckView({ courseId, checkId }: { courseId: string; che
     <div className="mx-auto flex max-w-4xl flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Button asChild variant="ghost"><Link href={`/learn/courses/${courseId}`}><ArrowLeft data-icon="inline-start" />Exit learning check</Link></Button>
-        <Badge variant="outline">Attempt <span className="tabular-nums">{attempt.attempt_number}</span> of <span className="tabular-nums">{check.max_attempts}</span></Badge>
+        <span className="text-sm text-muted-foreground">Attempt <span className="tabular-nums">{attempt.attempt_number}</span> of <span className="tabular-nums">{check.max_attempts}</span></span>
       </div>
       <Card>
         <CardHeader>
-          <Badge variant="secondary" className="mb-2">Knowledge check</Badge>
+          <p className="mb-2 text-sm font-medium text-primary">Knowledge check</p>
           <CardTitle className="text-2xl sm:text-3xl">{check.title}</CardTitle>
           <CardDescription className="flex flex-wrap gap-4">
             <span className="inline-flex items-center gap-1.5"><BookOpenCheck className="size-3.5" />{orderedQuestions.length} questions</span>

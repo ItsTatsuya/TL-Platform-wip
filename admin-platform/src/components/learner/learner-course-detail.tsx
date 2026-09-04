@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, BookOpenCheck, Check, ChevronDown, Clock3, Layers3, PlayCircle, Target } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -57,7 +56,9 @@ export function LearnerCourseDetail({ courseId }: { courseId: string }) {
 
       <Card>
         <CardHeader>
-          <Badge variant="secondary" className="mb-2">{course.program_name}</Badge>
+          <p className="mb-2 text-sm font-medium text-primary">
+            {course.program_name}
+          </p>
           <CardTitle className="max-w-4xl text-3xl sm:text-4xl">{course.name}</CardTitle>
           {course.description && <CardDescription className="max-w-3xl text-sm leading-6">{course.description}</CardDescription>}
         </CardHeader>

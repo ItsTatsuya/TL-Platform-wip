@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { learnerApi, LearnerApiError } from "@/lib/learner/api";
 import { derivedCourseProgress } from "@/lib/learner/course";
@@ -56,7 +55,9 @@ export function LearnerCourseLibrary() {
           <p className="text-sm text-muted-foreground">
             Showing <span className="font-medium tabular-nums text-foreground">{filtered.length}</span> of <span className="font-medium tabular-nums text-foreground">{courses.length}</span>
           </p>
-          <Badge variant="outline">Published curriculum</Badge>
+          <span className="text-xs font-medium text-muted-foreground">
+            Published curriculum
+          </span>
         </div>
       </div>
 

@@ -1,6 +1,5 @@
 import { ExternalLink, FileText, Lightbulb, MessageSquareText, Quote, Target } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -111,7 +110,10 @@ export function ContentRenderer({ content }: { content: Record<string, unknown> 
       {source && Boolean(source.title || source.creator || sourceUrl) && (
         <Card size="sm">
           <CardHeader>
-            <Badge variant="secondary" className="mb-1"><Quote />Related source</Badge>
+            <span className="mb-1 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Quote className="size-3.5" aria-hidden="true" />
+              Related source
+            </span>
             <CardTitle>{String(source.title || "Learning resource")}</CardTitle>
             {typeof source.creator === "string" && <CardDescription>{source.creator}</CardDescription>}
             {sourceUrl && <CardAction><Button asChild variant="outline" size="sm"><a href={sourceUrl} target="_blank" rel="noreferrer">Open source<ExternalLink data-icon="inline-end" /></a></Button></CardAction>}
