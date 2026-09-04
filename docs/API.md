@@ -104,9 +104,12 @@ When `configuration.renderer` is present, `schema_version` must be `1`. Installe
 | --- | --- | --- |
 | Students | `/students/`, `/students/{id}/` | Teachers see assigned-cohort students; students see themselves |
 | Student groups | `/student-groups/`, `/student-groups/{id}/` | Cohort name/code/grade/year/teacher/status |
+| Teachers | `/teachers/` | Active users eligible for optional student-group teacher assignment |
 | Memberships | `/student-group-members/`, `/student-group-members/{id}/`; `POST /student-groups/{id}/members/` | Unique `(student_group, student)`; body `{"student":"<uuid>"}` |
 | Enrollments | `/enrollments/`, `/enrollments/{id}/` | Exact CourseVersion; `ACTIVE`, `COMPLETED`, `SUSPENDED`, `EXPIRED`, `CANCELLED` |
 | Assignments | `/course-assignments/`, `/course-assignments/{id}/` | Exactly one of `student_group` or `student`; atomic enrollment creation |
+
+`GET /course-assignments/?student_group=<uuid>` safely filters the caller's already-scoped assignment queryset. A successful assignment creation may include `enrollment_outcome` with `created`, `existing`, and `targeted` counts. Active group assignments are also applied atomically when a student joins later. A conflicting active enrollment in another version of the same course rolls back the membership or assignment operation. Removing a group membership does not cancel or delete existing enrollments.
 | LMS mappings | `/external-user-mappings/`, `/external-user-mappings/{id}/` | Unique `(provider, external_user_id)` |
 
 ```json

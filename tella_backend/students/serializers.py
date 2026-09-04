@@ -19,10 +19,12 @@ class StudentGroupMemberSerializer(serializers.ModelSerializer):
 
 class StudentGroupSerializer(serializers.ModelSerializer):
     memberships = StudentGroupMemberSerializer(many=True, read_only=True)
+    teacher_detail = UserSerializer(source="teacher", read_only=True)
+    member_count = serializers.IntegerField(source="memberships.count", read_only=True)
 
     class Meta:
         model = StudentGroup
-        fields = ("id", "name", "code", "grade", "academic_year", "teacher", "status", "created_at", "updated_at", "memberships")
+        fields = ("id", "name", "code", "grade", "academic_year", "teacher", "teacher_detail", "status", "created_at", "updated_at", "member_count", "memberships")
         read_only_fields = ("created_at", "updated_at")
 
 
@@ -37,13 +39,20 @@ class EnrollmentSerializer(serializers.ModelSerializer):
 
 
 class CourseAssignmentSerializer(serializers.ModelSerializer):
+    course_name = serializers.CharField(source="course.name", read_only=True)
+    course_version_name = serializers.CharField(source="course_version.name", read_only=True)
+    assigned_by_detail = UserSerializer(source="assigned_by", read_only=True)
+    enrollment_outcome = serializers.SerializerMethodField()
     class Meta:
         model = CourseAssignment
         fields = (
             "id", "course", "course_version", "student_group", "student", "assigned_by",
-            "assigned_at", "due_date", "status", "created_at", "updated_at",
+            "course_name", "course_version_name", "assigned_by_detail", "assigned_at", "due_date", "status", "created_at", "updated_at", "enrollment_outcome",
         )
         read_only_fields = ("assigned_by", "assigned_at", "created_at", "updated_at")
+
+    def get_enrollment_outcome(self, obj):
+        return getattr(obj, "enrollment_outcome", None)
 
     def validate(self, attrs):
         if (attrs.get("student_group") is None) == (attrs.get("student") is None):

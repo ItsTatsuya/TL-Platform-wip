@@ -26,11 +26,16 @@ Production requests fail clearly when `DJANGO_API_URL` is absent. JWTs remain in
 - Content workspace for activity content, videos, experiments, practice sets, and practice items
 - Media workspace with multipart upload and storage-metadata editing
 - Learner workspace for students, cohorts, memberships, enrollments, assignments, and LMS mappings
+- Permission-aware student-group creation and maintenance
+- Student membership management with optional teacher assignment
+- Versioned course assignment to student groups with assignment history
 - Assessment workspace for questions, options, case studies, learning checks, and their question links
 - Access workspace for guarded account creation/editing, role assignment, and `SUPER_ADMIN` permission management
 - Reports and operations workspace for progress, attempts, answers, awards, career opportunities, and legacy workshop records
 
 `CONTENT_MANAGER` accounts receive curriculum-content-media tools; `ADMIN` accounts additionally receive learner, assessment, account, and reporting tools; `ACADEMIC_MANAGER` accounts receive full curriculum authoring, publication, and outcome reporting. The application always uses the returned permission set rather than assuming capabilities from a role name. Django is API-only; this application is the sole web administration surface.
+
+The dedicated Learners → Student groups workspace requires `students.view_studentgroup`. Mutations require `students.manage_student_groups`, and course delivery requires `students.assign_course`. Assigning a course version atomically enrolls all current members. Students added later inherit active group assignments; removing a member preserves existing enrollments so access is never revoked implicitly.
 
 ## Learner scope
 

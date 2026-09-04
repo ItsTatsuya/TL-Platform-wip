@@ -24,7 +24,7 @@ from assessments.views import (
 )
 from students.views import (
     CourseAssignmentViewSet, EnrollmentViewSet, ExternalUserMappingViewSet,
-    StudentGroupMemberViewSet, StudentGroupViewSet, StudentViewSet,
+    StudentGroupMemberViewSet, StudentGroupViewSet, StudentViewSet, TeacherViewSet,
 )
 from workshops.views import (
     StaffWorkshopModelViewSet, WorkshopConfigViewSet, WorkshopModelViewSet,
@@ -44,6 +44,7 @@ router.register(r"practice-sets", PracticeSetViewSet, basename="practice-set")
 router.register(r"practice-items", PracticeItemViewSet, basename="practice-item")
 router.register(r"media-assets", MediaAssetViewSet, basename="media-asset")
 router.register(r"students", StudentViewSet, basename="student")
+router.register(r"teachers", TeacherViewSet, basename="teacher")
 router.register(r"student-groups", StudentGroupViewSet, basename="student-group")
 router.register(r"student-group-members", StudentGroupMemberViewSet, basename="student-group-member")
 router.register(r"enrollments", EnrollmentViewSet, basename="enrollment")

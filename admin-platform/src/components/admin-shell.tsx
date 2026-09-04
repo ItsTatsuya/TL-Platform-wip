@@ -70,6 +70,12 @@ const navigation: NavigationItem[] = [
     permissions: ["students.view_studentgroup", "students.view_enrollment"],
   },
   {
+    href: "/student-groups",
+    label: "Student groups",
+    icon: Users,
+    permissions: ["students.view_studentgroup"],
+  },
+  {
     href: "/assessments",
     label: "Assessments",
     icon: ClipboardCheck,
