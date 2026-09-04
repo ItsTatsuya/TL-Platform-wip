@@ -31,6 +31,14 @@ class StudentViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
         return visible_students(self.request.user)
 
 
+class TeacherViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated, CanAccessStudentDomain]
+
+    def get_queryset(self):
+        return User.objects.filter(groups__name="TEACHER", is_active=True).distinct().prefetch_related("groups")
+
+
 class StudentGroupViewSet(viewsets.ModelViewSet):
     serializer_class = StudentGroupSerializer
     permission_classes = [IsAuthenticated, CanAccessStudentDomain]
@@ -75,7 +83,9 @@ class CourseAssignmentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, CanAccessStudentDomain]
 
     def get_queryset(self):
-        return visible_assignments(self.request.user)
+        queryset = visible_assignments(self.request.user)
+        student_group = self.request.query_params.get("student_group")
+        return queryset.filter(student_group_id=student_group) if student_group else queryset
 
     def perform_create(self, serializer):
         serializer.instance = create_course_assignment(actor=self.request.user, **serializer.validated_data)
